@@ -1,0 +1,93 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="120dp"
+    android:height="120dp"
+    android:viewportWidth="120"
+    android:viewportHeight="120">
+
+    <!-- Speed / Motion Lines (Emerald Green) -->
+    <!-- Top line -->
+    <path
+        android:fillColor="#1FA369"
+        android:pathData="M14,44 h16 c2.2,0 4,-1.8 4,-4 c0,-2.2 -1.8,-4 -4,-4 H14 c-2.2,0 -4,1.8 -4,4 c0,2.2 1.8,4 4,4 Z" />
+    <!-- Middle line (longest) -->
+    <path
+        android:fillColor="#1FA369"
+        android:pathData="M6,58 h28 c2.8,0 5,-2.2 5,-5 c0,-2.8 -2.2,-5 -5,-5 H6 c-2.8,0 -5,2.2 -5,5 c0,2.8 2.2,5 5,5 Z" />
+    <!-- Bottom line -->
+    <path
+        android:fillColor="#1FA369"
+        android:pathData="M12,72 h18 c2.2,0 4,-1.8 4,-4 c0,-2.2 -1.8,-4 -4,-4 H12 c-2.2,0 -4,1.8 -4,4 c0,2.2 1.8,4 4,4 Z" />
+
+    <!-- Clock Outer Ring (Navy Blue #124C88) -->
+    <path
+        android:strokeColor="#124C88"
+        android:strokeWidth="7"
+        android:fillColor="#00000000"
+        android:pathData="M 64,18 A 38,38 0 1,1 26,56 A 38,38 0 0,1 64,18" />
+
+    <!-- Clock Center Dot -->
+    <path
+        android:fillColor="#124C88"
+        android:pathData="M64,56 m-3.5,0 a3.5,3.5 0 1,0 7,0 a3.5,3.5 0 1,0 -7,0" />
+
+    <!-- Clock Hour Hand (pointing towards 10) -->
+    <path
+        android:strokeColor="#124C88"
+        android:strokeWidth="5"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M64,56 L49,42" />
+
+    <!-- Clock Minute Hand (pointing towards 2) -->
+    <path
+        android:strokeColor="#124C88"
+        android:strokeWidth="5"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M64,56 L78,38" />
+
+    <!-- Clock Hour Ticks -->
+    <path
+        android:fillColor="#124C88"
+        android:pathData="M64,24 m-2,0 a2,2 0 1,0 4,0 a2,2 0 1,0 -4,0" />
+    <path
+        android:fillColor="#124C88"
+        android:pathData="M32,56 m-2,0 a2,2 0 1,0 4,0 a2,2 0 1,0 -4,0" />
+
+    <!-- Green Checklist Card (Lower Right #1FA369) -->
+    <path
+        android:fillColor="#1FA369"
+        android:pathData="M66,54 h36 c4.4,0 8,3.6 8,8 v32 c0,4.4 -3.6,8 -8,8 H66 c-4.4,0 -8,-3.6 -8,-8 V62 c0,-4.4 3.6,-8 8,-8 Z" />
+
+    <!-- Checkmark 1 (White) -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="#00000000"
+        android:pathData="M64,68 L68,72 L76,64" />
+    <!-- Task line 1 (White) -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M82,68 H100" />
+
+    <!-- Checkmark 2 (White) -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="#00000000"
+        android:pathData="M64,84 L68,88 L76,80" />
+    <!-- Task line 2 (White) -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M82,84 H100" />
+</vector>
