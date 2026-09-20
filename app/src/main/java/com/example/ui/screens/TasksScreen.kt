@@ -52,6 +52,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.data.local.TaskEntity
 import com.example.domain.ai.WaqtiAiEngine
 import com.example.localization.AppLanguage
 import com.example.localization.Strings
@@ -72,8 +73,26 @@ fun TasksScreen(
     var selectedTab by remember { mutableStateOf(0) } // 0: All Tasks, 1: Projects & Goals, 2: Inbox
     var quickThought by remember { mutableStateOf("") }
     var categoryFilter by remember { mutableStateOf("ALL") }
+    var duplicateError by remember { mutableStateOf<String?>(null) }
 
-    val filteredTasks = tasks.filter {
+    // Guarantee uniqueness of tasks by normalized title (case-insensitive & trimmed)
+    val uniqueTasks = remember(tasks) {
+        tasks.groupBy { it.title.trim().lowercase() }
+            .map { (_, group) ->
+                group.maxWithOrNull(
+                    compareBy<TaskEntity> { task ->
+                        when (task.status) {
+                            "IN_PROGRESS" -> 3
+                            "PLANNED" -> 2
+                            "COMPLETED" -> 1
+                            else -> 0
+                        }
+                    }.thenBy { it.id }
+                ) ?: group.first()
+            }
+    }
+
+    val filteredTasks = uniqueTasks.filter {
         if (categoryFilter == "ALL") true else it.category == categoryFilter
     }
 
@@ -341,8 +360,21 @@ fun TasksScreen(
                         Spacer(modifier = Modifier.height(12.dp))
                         OutlinedTextField(
                             value = quickThought,
-                            onValueChange = { quickThought = it },
+                            onValueChange = {
+                                quickThought = it
+                                duplicateError = null
+                            },
                             placeholder = { Text(if (language == AppLanguage.ARABIC) "مثال: مراجعة عقود السيرفر مع مزود الخدمة يوم الأحد" else "e.g. Renew cloud servers on Sunday") },
+                            isError = duplicateError != null,
+                            supportingText = if (duplicateError != null) {
+                                {
+                                    Text(
+                                        text = duplicateError.orEmpty(),
+                                        color = WaqtiDanger,
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
+                            } else null,
                             modifier = Modifier.fillMaxWidth(),
                             minLines = 2
                         )
@@ -350,11 +382,20 @@ fun TasksScreen(
                         Spacer(modifier = Modifier.height(12.dp))
                         Button(
                             onClick = {
-                                if (quickThought.isNotBlank()) {
-                                    val classified = WaqtiAiEngine.classifyInboxThought(quickThought)
-                                    viewModel.addTask(classified.title, classified.priority, classified.durationMinutes, classified.category)
-                                    quickThought = ""
-                                    selectedTab = 0
+                                val trimmed = quickThought.trim()
+                                if (trimmed.isNotBlank()) {
+                                    val classified = WaqtiAiEngine.classifyInboxThought(trimmed)
+                                    val success = viewModel.addTask(classified.title, classified.priority, classified.durationMinutes, classified.category)
+                                    if (success) {
+                                        quickThought = ""
+                                        duplicateError = null
+                                        selectedTab = 0
+                                    } else {
+                                        duplicateError = if (language == AppLanguage.ARABIC)
+                                            "⚠️ هذه المهمة موجودة بالفعل في قائمتك (تم منع التكرار)"
+                                        else
+                                            "⚠️ This task already exists in your tasks list (duplicate prevented)"
+                                    }
                                 }
                             },
                             shape = RoundedCornerShape(12.dp),

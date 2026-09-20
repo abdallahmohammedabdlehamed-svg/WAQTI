@@ -65,10 +65,16 @@ class WaqtiRepository(private val dao: WaqtiDao) {
     suspend fun updateTask(task: TaskEntity) = dao.updateTask(task)
     suspend fun deleteTask(task: TaskEntity) = dao.deleteTask(task)
     suspend fun deleteTaskById(id: Long) = dao.deleteTaskById(id)
+    suspend fun getTaskCount(): Int = dao.getTaskCount()
+    suspend fun getAllTasksDirect(): List<TaskEntity> = dao.getAllTasksDirect()
+    suspend fun deleteTasksByIds(ids: List<Long>) = dao.deleteTasksByIds(ids)
+    suspend fun getRoutineCount(): Int = dao.getRoutineCount()
 
     suspend fun insertRoutine(routine: RoutineEntity): Long = dao.insertRoutine(routine)
     suspend fun updateRoutine(routine: RoutineEntity) = dao.updateRoutine(routine)
     suspend fun deleteRoutine(routine: RoutineEntity) = dao.deleteRoutine(routine)
+    suspend fun getAllRoutinesDirect(): List<RoutineEntity> = dao.getAllRoutinesDirect()
+    suspend fun deleteRoutinesByIds(ids: List<Long>) = dao.deleteRoutinesByIds(ids)
 
     suspend fun insertHabit(habit: HabitEntity): Long = dao.insertHabit(habit)
     suspend fun updateHabit(habit: HabitEntity) = dao.updateHabit(habit)

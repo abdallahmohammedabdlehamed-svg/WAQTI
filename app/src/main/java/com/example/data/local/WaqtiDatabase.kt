@@ -142,7 +142,9 @@ abstract class WaqtiDatabase : RoomDatabase() {
                     isProtected = false
                 )
             )
-            dao.insertTasks(initialTasks)
+            if (dao.getTaskCount() == 0) {
+                dao.insertTasks(initialTasks)
+            }
 
             // Initial Daily Program & Routines (Life OS + Worship + Health)
             val initialRoutines = listOf(
@@ -279,7 +281,9 @@ abstract class WaqtiDatabase : RoomDatabase() {
                     streak = 6
                 )
             )
-            dao.insertRoutines(initialRoutines)
+            if (dao.getRoutineCount() == 0) {
+                dao.insertRoutines(initialRoutines)
+            }
 
             // Initial Habits
             val initialHabits = listOf(

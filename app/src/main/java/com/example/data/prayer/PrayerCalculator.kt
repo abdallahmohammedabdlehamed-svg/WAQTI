@@ -139,4 +139,43 @@ object PrayerCalculator {
         val times = getPrayerTimes(date, settings)
         return times.firstOrNull { it.isNext } ?: times.first()
     }
+
+    /**
+     * Calculates the great-circle Qibla azimuth angle (0° = North, clockwise to 360°)
+     * from any latitude/longitude towards the Holy Kaaba in Makkah (21.4225° N, 39.8262° E).
+     */
+    fun calculateQibla(userLat: Double, userLon: Double): Double {
+        val makkahLat = Math.toRadians(21.422487)
+        val makkahLon = Math.toRadians(39.826206)
+        val uLat = Math.toRadians(userLat)
+        val uLon = Math.toRadians(userLon)
+        val deltaLon = makkahLon - uLon
+
+        val y = kotlin.math.sin(deltaLon) * kotlin.math.cos(makkahLat)
+        val x = kotlin.math.cos(uLat) * kotlin.math.sin(makkahLat) -
+                kotlin.math.sin(uLat) * kotlin.math.cos(makkahLat) * kotlin.math.cos(deltaLon)
+
+        val qiblaRad = kotlin.math.atan2(y, x)
+        return (Math.toDegrees(qiblaRad) + 360.0) % 360.0
+    }
+
+    /**
+     * Calculates distance to Makkah in kilometers using Haversine formula
+     */
+    fun getDistanceToMakkah(userLat: Double, userLon: Double): Int {
+        val r = 6371.0 // Earth radius in km
+        val makkahLat = Math.toRadians(21.422487)
+        val makkahLon = Math.toRadians(39.826206)
+        val uLat = Math.toRadians(userLat)
+        val uLon = Math.toRadians(userLon)
+
+        val dLat = makkahLat - uLat
+        val dLon = makkahLon - uLon
+
+        val a = kotlin.math.sin(dLat / 2) * kotlin.math.sin(dLat / 2) +
+                kotlin.math.cos(uLat) * kotlin.math.cos(makkahLat) *
+                kotlin.math.sin(dLon / 2) * kotlin.math.sin(dLon / 2)
+        val c = 2 * kotlin.math.atan2(kotlin.math.sqrt(a), kotlin.math.sqrt(1 - a))
+        return (r * c).toInt()
+    }
 }

@@ -132,12 +132,75 @@ object QuranAzkarData {
         )
     )
 
+    val sleepAzkarList: List<AzkarItem> = listOf(
+        AzkarItem(
+            id = "s1",
+            textAr = "بِاسْمِكَ رَبِّي وَضَعْتُ جَنْبِي، وَبِكَ أَرْفَعُهُ، فَإِنْ أَمْسَكْتَ نَفْسِي فَارْحَمْهَا، وَإِنْ أَرْسَلْتَهَا فَاحْفَظْهَا بِمَا تَحْفَظُ بِهِ عِبَادَكَ الصَّالِحِينَ.",
+            textEn = "In Your name my Lord, I lie down, and by Your power I rise. If You take my soul, have mercy upon it, and if You release it, protect it as You protect Your righteous servants.",
+            targetCount = 1,
+            benefitAr = "أمان وسكينة وطمأنينة النوم على الفطرة",
+            benefitEn = "Peace, comfort and spiritual shelter during sleep"
+        ),
+        AzkarItem(
+            id = "s2",
+            textAr = "اللَّهُمَّ خَلَقْتَ نَفْسِي وَأَنْتَ تَوَفَّاهَا، لَكَ مَمَاتُهَا وَمَحْيَاهَا، إِنْ أَحْيَيْتَهَا فَاحْفَظْهَا، وَإِنْ أَمَتَّهَا فَاغْفِرْ لَهَا.",
+            textEn = "O Allah, You created my soul and You take it. To You belongs its life and death. If You preserve it, protect it, and if You take it, forgive it.",
+            targetCount = 1,
+            benefitAr = "تفويض الأمر إلى الله واستشعار حفظه",
+            benefitEn = "Surrendering matters unto Allah with total trust"
+        ),
+        AzkarItem(
+            id = "s3",
+            textAr = "سُورَةُ الإِخْلَاصِ وَالمُعَوِّذَتَيْنِ (قُلْ هُوَ اللَّهُ أَحَدٌ، قُلْ أَعُوذُ بِرَبِّ الْفَلَقِ، قُلْ أَعُوذُ بِرَبِّ النَّاسِ).",
+            textEn = "Recitation of Surah Al-Ikhlas, Al-Falaq, and An-Nas.",
+            targetCount = 3,
+            benefitAr = "حفظ تام من الشياطين والوساوس والأحلام المزعجة",
+            benefitEn = "Complete protection from negative whispers and nightmares"
+        )
+    )
+
+    val afterPrayerAzkarList: List<AzkarItem> = listOf(
+        AzkarItem(
+            id = "p1",
+            textAr = "أَسْتَغْفِرُ اللَّهَ، أَسْتَغْفِرُ اللَّهَ، أَسْتَغْفِرُ اللَّهَ.. اللَّهُمَّ أَنْتَ السَّلَامُ وَمِنْكَ السَّلَامُ، تَبَارَكْتَ يَا ذَا الْجَلَالِ وَالإِكْرَامِ.",
+            textEn = "I seek Allah's forgiveness (x3). O Allah, You are Peace and from You comes peace; blessed are You, Possessor of Glory and Honor.",
+            targetCount = 1,
+            benefitAr = "استفتاح أذكار ما بعد الفريضة بالاستغفار والثناء",
+            benefitEn = "Seeking forgiveness and praising the Divine immediately after prayer"
+        ),
+        AzkarItem(
+            id = "p2",
+            textAr = "اللَّهُمَّ أَعِنِّي عَلَى ذِكْرِكَ، وَشُكْرِكَ، وَحُسْنِ عِبَادَتِكَ.",
+            textEn = "O Allah, help me to remember You, thank You, and worship You in the best manner.",
+            targetCount = 1,
+            benefitAr = "وصية نبوية جامعة للثبات والاستعانة بالله",
+            benefitEn = "A comprehensive Prophetic prayer for steadfast devotion"
+        ),
+        AzkarItem(
+            id = "p3",
+            textAr = "سُبْحَانَ اللَّهِ (33)، الْحَمْدُ لِلَّهِ (33)، اللَّهُ أَكْبَرُ (33).. وتَمَامُ الْمِائَةِ: لَا إِلَهَ إِلَّا اللَّهُ وَحْدَهُ لَا شَرِيكَ لَهُ.",
+            textEn = "SubhanAllah (33x), Alhamdulillah (33x), Allahu Akbar (33x), completed with La ilaha illa Allah.",
+            targetCount = 33,
+            benefitAr = "غفران الخطايا ورفعة الدرجات في الميزان",
+            benefitEn = "Forgiveness of missteps and great elevation in virtue"
+        ),
+        AzkarItem(
+            id = "p4",
+            textAr = "آيَةُ الْكُرْسِيِّ: ﴿ اللَّهُ لَا إِلَهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ.. ﴾",
+            textEn = "Ayat Al-Kursi (Quran 2:255).",
+            targetCount = 1,
+            benefitAr = "من قرأها دبر كل صلاة لم يمنعه من دخول الجنة إلا أن يموت",
+            benefitEn = "One of the greatest assurances of Paradise when read after obligatory prayers"
+        )
+    )
+
     val dhikrPhrases = listOf(
         "سُبْحَانَ اللَّهِ" to "SubhanAllah (Glory be to Allah)",
         "الْحَمْدُ لِلَّهِ" to "Alhamdulillah (All praise is due to Allah)",
         "لَا إِلَهَ إِلَّا اللَّهُ" to "La ilaha illa Allah (None worthy of worship but Allah)",
         "اللَّهُ أَكْبَرُ" to "Allahu Akbar (Allah is Greater)",
         "أَسْتَغْفِرُ اللَّهَ" to "Astaghfirullah (I ask Allah for forgiveness)",
-        "لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللَّهِ" to "La hawla wala quwwata illa billah"
+        "لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللَّهِ" to "La hawla wala quwwata illa billah",
+        "اللَّهُمَّ صَلِّ عَلَى مُحَمَّدٍ" to "Allahumma Salli Ala Muhammad (Salawat)"
     )
 }

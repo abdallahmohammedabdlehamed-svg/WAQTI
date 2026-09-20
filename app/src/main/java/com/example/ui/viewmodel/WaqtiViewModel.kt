@@ -17,6 +17,7 @@ import com.example.domain.ai.RescheduleResult
 import com.example.domain.ai.WaqtiAiEngine
 import com.example.localization.AppLanguage
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,6 +25,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -45,9 +47,39 @@ class WaqtiViewModel(application: Application) : AndroidViewModel(application) {
             val uid = user?.id ?: "user_default_01"
             repository.getTasksForUser(uid)
         }
+        .map { rawTasks ->
+            // Prevent duplicate tasks by normalized title (trimmed, case-insensitive)
+            rawTasks.groupBy { it.title.trim().lowercase() }
+                .map { (_, group) ->
+                    group.maxWithOrNull(
+                        compareBy<TaskEntity> { task ->
+                            when (task.status) {
+                                "IN_PROGRESS" -> 3
+                                "PLANNED" -> 2
+                                "COMPLETED" -> 1
+                                else -> 0
+                            }
+                        }.thenBy { it.id }
+                    ) ?: group.first()
+                }
+                .sortedBy { it.startTime }
+        }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val routines: StateFlow<List<RoutineEntity>> = repository.allRoutines
+        .map { rawRoutines ->
+            rawRoutines.groupBy {
+                val cleanAr = it.titleAr.trim().lowercase()
+                val cleanEn = it.title.trim().lowercase()
+                "${it.time.trim()}::$cleanAr::$cleanEn"
+            }.map { (_, group) ->
+                group.maxWithOrNull(
+                    compareBy<RoutineEntity> { if (it.isCompleted) 1 else 0 }
+                        .thenBy { it.streak }
+                        .thenBy { it.id }
+                ) ?: group.first()
+            }.sortedBy { it.time }
+        }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val habits: StateFlow<List<HabitEntity>> = repository.allHabits
@@ -139,6 +171,27 @@ class WaqtiViewModel(application: Application) : AndroidViewModel(application) {
     private val _selectedDhikr = MutableStateFlow(0)
     val selectedDhikr: StateFlow<Int> = _selectedDhikr.asStateFlow()
 
+    private val _dhikrTarget = MutableStateFlow(33)
+    val dhikrTarget: StateFlow<Int> = _dhikrTarget.asStateFlow()
+
+    private val _dhikrStreak = MutableStateFlow(7)
+    val dhikrStreak: StateFlow<Int> = _dhikrStreak.asStateFlow()
+
+    private val _dhikrTotalToday = MutableStateFlow(132)
+    val dhikrTotalToday: StateFlow<Int> = _dhikrTotalToday.asStateFlow()
+
+    private val _milestoneCelebration = MutableStateFlow<String?>(null)
+    val milestoneCelebration: StateFlow<String?> = _milestoneCelebration.asStateFlow()
+
+    private val _azkarRemainingMap = MutableStateFlow<Map<String, Int>>(emptyMap())
+    val azkarRemainingMap: StateFlow<Map<String, Int>> = _azkarRemainingMap.asStateFlow()
+
+    private val _showQiblaCompass = MutableStateFlow(false)
+    val showQiblaCompass: StateFlow<Boolean> = _showQiblaCompass.asStateFlow()
+
+    private val _preAthanAlertOffsetMinutes = MutableStateFlow(10)
+    val preAthanAlertOffsetMinutes: StateFlow<Int> = _preAthanAlertOffsetMinutes.asStateFlow()
+
     // Modals & UI Toggles
     private val _showPricingModal = MutableStateFlow(false)
     val showPricingModal: StateFlow<Boolean> = _showPricingModal.asStateFlow()
@@ -155,13 +208,133 @@ class WaqtiViewModel(application: Application) : AndroidViewModel(application) {
     private val _userPlan = MutableStateFlow("WAQTI PRO (7 days trial)")
     val userPlan: StateFlow<String> = _userPlan.asStateFlow()
 
+    private val _notificationsEnabled = MutableStateFlow(true)
+    val notificationsEnabled: StateFlow<Boolean> = _notificationsEnabled.asStateFlow()
+
+    private val _requestPermissionTrigger = MutableStateFlow(0)
+    val requestPermissionTrigger: StateFlow<Int> = _requestPermissionTrigger.asStateFlow()
+
     init {
-        // Initialize sample data if empty
+        // 1. Ensure notification channels are ready and clear any old duplicate notification spam
+        try {
+            com.example.notification.WaqtiNotificationChannels.createChannels(application)
+            com.example.notification.WaqtiNotificationPoster.cancelAllActiveNotifications(application)
+            checkNotificationStatus()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        // 2. Clean up any existing duplicate tasks and routines in the database, and initialize sample data if empty
         viewModelScope.launch {
-            delay(300)
-            if (tasks.value.isEmpty()) {
+            cleanUpDuplicateTasks()
+            cleanUpDuplicateRoutines()
+            delay(200)
+            if (repository.getTaskCount() == 0 && repository.getRoutineCount() == 0) {
                 WaqtiDatabase.populateInitialData(database.waqtiDao())
             }
+            // Auto schedule today's notifications
+            recalculateNotifications()
+        }
+    }
+
+    /**
+     * Finds and deletes any duplicate tasks in the local Room database,
+     * ensuring each task title exists only once per user.
+     */
+    fun cleanUpDuplicateTasks() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val allTasks = repository.getAllTasksDirect()
+                if (allTasks.size <= 1) return@launch
+
+                val grouped = allTasks.groupBy {
+                    "${it.userId.trim().lowercase()}::${it.title.trim().lowercase()}"
+                }
+
+                val duplicatesToDelete = mutableListOf<Long>()
+
+                for ((_, group) in grouped) {
+                    if (group.size > 1) {
+                        // Keep the best entry: prefer IN_PROGRESS, then PLANNED, then COMPLETED, break ties with highest id
+                        val toKeep = group.maxWithOrNull(
+                            compareBy<TaskEntity> { task ->
+                                when (task.status) {
+                                    "IN_PROGRESS" -> 3
+                                    "PLANNED" -> 2
+                                    "COMPLETED" -> 1
+                                    else -> 0
+                                }
+                            }.thenBy { it.id }
+                        ) ?: group.first()
+
+                        val toRemove = group.filter { it.id != toKeep.id }.map { it.id }
+                        duplicatesToDelete.addAll(toRemove)
+                    }
+                }
+
+                if (duplicatesToDelete.isNotEmpty()) {
+                    repository.deleteTasksByIds(duplicatesToDelete)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    /**
+     * Finds and deletes any duplicate routines (البرنامج اليومي) in the local Room database,
+     * ensuring each routine title/time exists only once.
+     */
+    fun cleanUpDuplicateRoutines() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val allRoutines = repository.getAllRoutinesDirect()
+                if (allRoutines.size <= 1) return@launch
+
+                val grouped = allRoutines.groupBy {
+                    val cleanAr = it.titleAr.trim().lowercase()
+                    val cleanEn = it.title.trim().lowercase()
+                    "${it.time.trim()}::$cleanAr::$cleanEn"
+                }
+
+                val duplicatesToDelete = mutableListOf<Long>()
+
+                for ((_, group) in grouped) {
+                    if (group.size > 1) {
+                        val toKeep = group.maxWithOrNull(
+                            compareBy<RoutineEntity> { if (it.isCompleted) 1 else 0 }
+                                .thenBy { it.streak }
+                                .thenBy { it.id }
+                        ) ?: group.first()
+
+                        val toRemove = group.filter { it.id != toKeep.id }.map { it.id }
+                        duplicatesToDelete.addAll(toRemove)
+                    }
+                }
+
+                if (duplicatesToDelete.isNotEmpty()) {
+                    repository.deleteRoutinesByIds(duplicatesToDelete)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    fun checkNotificationStatus() {
+        val app = getApplication<Application>()
+        val areEnabled = androidx.core.app.NotificationManagerCompat.from(app).areNotificationsEnabled()
+        _notificationsEnabled.value = areEnabled
+    }
+
+    fun triggerRequestNotificationPermission() {
+        _requestPermissionTrigger.value += 1
+    }
+
+    fun onNotificationPermissionResult(granted: Boolean) {
+        _notificationsEnabled.value = granted
+        if (granted) {
+            recalculateNotifications()
         }
     }
 
@@ -185,13 +358,21 @@ class WaqtiViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun addTask(title: String, priority: String, durationMin: Int, category: String) {
-        if (title.isBlank()) return
+    fun addTask(title: String, priority: String, durationMin: Int, category: String): Boolean {
+        val trimmed = title.trim()
+        if (trimmed.isBlank()) return false
+        
+        // Prevent adding duplicate task with same title (case-insensitive)
+        val alreadyExists = tasks.value.any { it.title.trim().equals(trimmed, ignoreCase = true) }
+        if (alreadyExists) {
+            return false
+        }
+
         val currentUserId = currentUser.value?.id ?: "user_default_01"
         viewModelScope.launch {
             val newTask = TaskEntity(
                 userId = currentUserId,
-                title = title.trim(),
+                title = trimmed,
                 priority = priority,
                 durationMinutes = durationMin,
                 category = category,
@@ -201,6 +382,7 @@ class WaqtiViewModel(application: Application) : AndroidViewModel(application) {
             )
             repository.insertTask(newTask)
         }
+        return true
     }
 
     fun deleteTask(task: TaskEntity) {
@@ -503,7 +685,42 @@ class WaqtiViewModel(application: Application) : AndroidViewModel(application) {
 
     // Dhikr & Ayah
     fun incrementDhikr() {
-        _dhikrCount.value = (_dhikrCount.value + 1) % 100
+        val next = _dhikrCount.value + 1
+        val target = _dhikrTarget.value
+        _dhikrCount.value = if (target > 0 && next > target) 1 else next
+        _dhikrTotalToday.value += 1
+        if (target > 0 && next == target) {
+            _milestoneCelebration.value = if (_language.value == AppLanguage.ARABIC) 
+                "مبارك! أتممت $target تسبيحة ✨ تقبل الله منك" 
+            else 
+                "Milestone Reached! Completed $target Tasbeeh ✨"
+        }
+    }
+
+    fun resetDhikr() {
+        _dhikrCount.value = 0
+    }
+
+    fun setDhikrTarget(target: Int) {
+        _dhikrTarget.value = target
+        _dhikrCount.value = 0
+    }
+
+    fun clearMilestone() {
+        _milestoneCelebration.value = null
+    }
+
+    fun decrementAzkarItem(id: String, defaultCount: Int) {
+        val current = _azkarRemainingMap.value[id] ?: defaultCount
+        if (current > 0) {
+            val newCount = current - 1
+            _azkarRemainingMap.value = _azkarRemainingMap.value + (id to newCount)
+            _dhikrTotalToday.value += 1
+        }
+    }
+
+    fun resetAzkarItem(id: String, defaultCount: Int) {
+        _azkarRemainingMap.value = _azkarRemainingMap.value + (id to defaultCount)
     }
 
     fun selectNextAyah() {
@@ -513,6 +730,16 @@ class WaqtiViewModel(application: Application) : AndroidViewModel(application) {
     fun setSelectedDhikr(index: Int) {
         _selectedDhikr.value = index
         _dhikrCount.value = 0
+    }
+
+    fun setShowQiblaCompass(show: Boolean) {
+        _showQiblaCompass.value = show
+    }
+
+    fun setPreAthanAlertOffset(minutes: Int) {
+        _preAthanAlertOffsetMinutes.value = minutes
+        val updated = _advancedNotificationSettings.value.copy(prayerAdvanceMinutes = minutes)
+        updateAdvancedSettings(updated)
     }
 
     // Modals

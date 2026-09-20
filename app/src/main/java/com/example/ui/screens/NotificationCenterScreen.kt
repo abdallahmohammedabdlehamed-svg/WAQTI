@@ -116,6 +116,7 @@ fun NotificationCenterScreen(
     val advancedSettings by viewModel.advancedNotificationSettings.collectAsStateWithLifecycle()
     val isFatigueAlert by viewModel.isFatigueAlert.collectAsStateWithLifecycle()
     val isRecalculating by viewModel.isNotificationEngineRecalculating.collectAsStateWithLifecycle()
+    val notificationsEnabled by viewModel.notificationsEnabled.collectAsStateWithLifecycle()
 
     var selectedSectionTab by remember { mutableIntStateOf(0) } // 0: Categories, 1: Prayer Engine, 2: Smart Control & Logs
     var expandedCategoryId by remember { mutableStateOf<String?>(null) }
@@ -241,6 +242,59 @@ fun NotificationCenterScreen(
                 ),
                 modifier = Modifier.weight(1f)
             )
+        }
+
+        // System Notification Disabled Warning Banner
+        AnimatedVisibility(visible = !notificationsEnabled) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 6.dp),
+                colors = CardDefaults.cardColors(containerColor = WaqtiDanger.copy(alpha = 0.15f)),
+                border = BorderStroke(1.dp, WaqtiDanger.copy(alpha = 0.5f)),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.NotificationsOff,
+                        contentDescription = null,
+                        tint = WaqtiDanger,
+                        modifier = Modifier.size(28.dp)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = if (isArabic) "إشعارات النظام غير مفعّلة!" else "System Notifications Disabled!",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = WaqtiDanger
+                        )
+                        Text(
+                            text = if (isArabic) "يرجى منح إذن الإشعارات لتصلك مواقيت الصلاة والمهام اليومية في وقتها المحدد."
+                            else "Please grant notification permission so you receive prayers and task reminders on time.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Button(
+                            onClick = { viewModel.triggerRequestNotificationPermission() },
+                            colors = ButtonDefaults.buttonColors(containerColor = WaqtiDanger),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.height(36.dp)
+                        ) {
+                            Text(
+                                text = if (isArabic) "تفعيل الإشعارات الآن 🔔" else "Enable Notifications Now 🔔",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        }
+                    }
+                }
+            }
         }
 
         // Notification Fatigue Warning Banner (if active)

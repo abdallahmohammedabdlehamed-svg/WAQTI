@@ -76,6 +76,7 @@ fun TodayScreen(
     var newTaskTitle by remember { mutableStateOf("") }
     var newTaskDuration by remember { mutableStateOf("45") }
     var newTaskPriority by remember { mutableStateOf("MEDIUM") }
+    var addTaskError by remember { mutableStateOf<String?>(null) }
 
     // Combine tasks and routines into a unified timeline
     data class TimelineItem(
@@ -119,7 +120,9 @@ fun TodayScreen(
                 priority = if (r.isProtected) "HIGH" else "MEDIUM"
             )
         }
-        (taskItems + routineItems).sortedBy { it.time }
+        (taskItems + routineItems)
+            .distinctBy { "${it.isRoutine}_${it.time}_${it.title.trim().lowercase()}" }
+            .sortedBy { it.time }
     }
 
     Scaffold(
@@ -215,9 +218,22 @@ fun TodayScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     OutlinedTextField(
                         value = newTaskTitle,
-                        onValueChange = { newTaskTitle = it },
+                        onValueChange = {
+                            newTaskTitle = it
+                            addTaskError = null
+                        },
                         label = { Text(if (language == AppLanguage.ARABIC) "عنوان المهمة" else "Task Title") },
                         placeholder = { Text(Strings.taskTitleHint(language)) },
+                        isError = addTaskError != null,
+                        supportingText = if (addTaskError != null) {
+                            {
+                                Text(
+                                    text = addTaskError.orEmpty(),
+                                    color = WaqtiDanger,
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
+                        } else null,
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth().testTag("task_title_input")
                     )
@@ -256,9 +272,17 @@ fun TodayScreen(
                 Button(
                     onClick = {
                         val dur = newTaskDuration.toIntOrNull() ?: 45
-                        viewModel.addTask(newTaskTitle, newTaskPriority, dur, "WORK")
-                        newTaskTitle = ""
-                        showAddTaskDialog = false
+                        val added = viewModel.addTask(newTaskTitle, newTaskPriority, dur, "WORK")
+                        if (added) {
+                            newTaskTitle = ""
+                            addTaskError = null
+                            showAddTaskDialog = false
+                        } else {
+                            addTaskError = if (language == AppLanguage.ARABIC)
+                                "⚠️ هذه المهمة موجودة بالفعل في جدولك اليومي"
+                            else
+                                "⚠️ This task already exists in your schedule"
+                        }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = WaqtiPrimary),
                     modifier = Modifier.testTag("submit_task_button")

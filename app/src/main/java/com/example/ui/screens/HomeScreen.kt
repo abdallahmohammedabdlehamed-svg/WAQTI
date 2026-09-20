@@ -107,6 +107,21 @@ private fun getTaskCategoryIconAndColor(category: String, title: String): Pair<I
     }
 }
 
+enum class WaqtiTimePeriod {
+    MORNING,
+    AFTERNOON,
+    NIGHT
+}
+
+data class HeroTimeOfDayConfig(
+    val imageRes: Int,
+    val greeting: String,
+    val subtitle: String,
+    val badgeLabel: String,
+    val badgeColor: Color,
+    val scrimColors: List<Color>
+)
+
 @Composable
 fun HomeScreen(
     viewModel: WaqtiViewModel,
@@ -178,6 +193,48 @@ fun HomeScreen(
     val dayOfMonth = remember { todayCalendar.get(java.util.Calendar.DAY_OF_MONTH) }
     val dateFormatted = "$dayName، $dayOfMonth $monthName"
 
+    val notificationsEnabled by viewModel.notificationsEnabled.collectAsStateWithLifecycle()
+    val currentHour = remember { todayCalendar.get(java.util.Calendar.HOUR_OF_DAY) }
+    var overridePeriod by remember { mutableStateOf<WaqtiTimePeriod?>(null) }
+
+    val effectivePeriod = overridePeriod ?: when (currentHour) {
+        in 5..11 -> WaqtiTimePeriod.MORNING
+        in 12..16 -> WaqtiTimePeriod.AFTERNOON
+        else -> WaqtiTimePeriod.NIGHT
+    }
+
+    val displayName = currentUser?.name?.takeIf { it.isNotBlank() }
+        ?: if (language == AppLanguage.ARABIC) "عبدالله محمد" else "Abdallah Mohammed"
+
+    val heroConfig = remember(effectivePeriod, language, displayName) {
+        when (effectivePeriod) {
+            WaqtiTimePeriod.MORNING -> HeroTimeOfDayConfig(
+                imageRes = com.example.R.drawable.img_waqti_morning,
+                greeting = if (language == AppLanguage.ARABIC) "صباح الخير والبركة، $displayName ☀️" else "Good morning, $displayName ☀️",
+                subtitle = if (language == AppLanguage.ARABIC) "صباح مشرق مفعم بالهمة والسكينة والإنتاجية" else "A radiant morning of energy, peace & focus",
+                badgeLabel = if (language == AppLanguage.ARABIC) "☀️ صباح مشرق" else "☀️ Radiant Morning",
+                badgeColor = Color(0xFFF59E0B),
+                scrimColors = listOf(Color(0x15000000), Color(0x950B1120), Color(0xF20B1120))
+            )
+            WaqtiTimePeriod.AFTERNOON -> HeroTimeOfDayConfig(
+                imageRes = com.example.R.drawable.img_waqti_morning,
+                greeting = if (language == AppLanguage.ARABIC) "طاب يومك بكل خير، $displayName 🌤️" else "Good afternoon, $displayName 🌤️",
+                subtitle = if (language == AppLanguage.ARABIC) "واصل التقدم واغتنم بركة الوقت في إنجاز أهدافك" else "Keep momentum and achieve today's goals",
+                badgeLabel = if (language == AppLanguage.ARABIC) "🌤️ فترة الظهيرة" else "🌤️ Afternoon",
+                badgeColor = Color(0xFF0284C7),
+                scrimColors = listOf(Color(0x20000000), Color(0xAA0B1120), Color(0xF50B1120))
+            )
+            WaqtiTimePeriod.NIGHT -> HeroTimeOfDayConfig(
+                imageRes = com.example.R.drawable.img_waqti_night,
+                greeting = if (language == AppLanguage.ARABIC) "مساء الخير والسكينة، $displayName 🌙" else "Good evening, $displayName 🌙",
+                subtitle = if (language == AppLanguage.ARABIC) "سكينة الليل ونور القمر.. وقت المراجعة والراحة" else "Peaceful moonlit night.. reflection & rest",
+                badgeLabel = if (language == AppLanguage.ARABIC) "🌙 ليل بنور القمر" else "🌙 Moonlit Night",
+                badgeColor = Color(0xFFA78BFA),
+                scrimColors = listOf(Color(0x30000000), Color(0xBB080E1E), Color(0xF8080E1E))
+            )
+        }
+    }
+
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
@@ -185,7 +242,66 @@ fun HomeScreen(
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // 1. Ambient Hero Banner with Desk Background
+        // Notification permission banner if disabled
+        if (!notificationsEnabled) {
+            item {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { viewModel.triggerRequestNotificationPermission() },
+                    colors = CardDefaults.cardColors(containerColor = WaqtiDanger.copy(alpha = 0.15f)),
+                    border = BorderStroke(1.dp, WaqtiDanger.copy(alpha = 0.4f)),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Warning,
+                                contentDescription = null,
+                                tint = WaqtiDanger,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column {
+                                Text(
+                                    text = if (language == AppLanguage.ARABIC) "إشعارات النظام غير مفعّلة" else "System Notifications Disabled",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = WaqtiDanger
+                                )
+                                Text(
+                                    text = if (language == AppLanguage.ARABIC) "اضغط هنا لتفعيل التنبيهات لمواقيت الصلاة والمهام" else "Tap here to enable prayer and task alerts",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
+                        Button(
+                            onClick = { viewModel.triggerRequestNotificationPermission() },
+                            colors = ButtonDefaults.buttonColors(containerColor = WaqtiDanger),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.height(34.dp)
+                        ) {
+                            Text(
+                                text = if (language == AppLanguage.ARABIC) "تفعيل 🔔" else "Enable 🔔",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // 1. Dynamic Ambient Hero Banner (Day/Night Time-Adaptive)
         item {
             Card(
                 shape = RoundedCornerShape(22.dp),
@@ -198,28 +314,22 @@ fun HomeScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(160.dp)
+                        .height(175.dp)
                 ) {
-                    // Desk hero ambient backdrop
+                    // Dynamic backdrop: Bright Morning Sun or Serene Moonlit Night
                     Image(
-                        painter = painterResource(id = com.example.R.drawable.img_waqti_hero),
+                        painter = painterResource(id = heroConfig.imageRes),
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.matchParentSize()
                     )
 
-                    // Obsidian dark gradient scrim for high contrast and elegance
+                    // Adaptive dark gradient scrim for contrast and legibility
                     Box(
                         modifier = Modifier
                             .matchParentSize()
                             .background(
-                                Brush.verticalGradient(
-                                    colors = listOf(
-                                        Color(0x33000000),
-                                        Color(0xBB0B1120),
-                                        Color(0xF50B1120)
-                                    )
-                                )
+                                Brush.verticalGradient(colors = heroConfig.scrimColors)
                             )
                     )
 
@@ -227,48 +337,76 @@ fun HomeScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(18.dp),
+                            .padding(16.dp),
                         verticalArrangement = Arrangement.SpaceBetween
                     ) {
-                        // Top row: Date pill & Next Prayer chip
+                        // Top row: Date pill, Period Toggle Chip & Next Prayer chip
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            // Date pill
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(Color.Black.copy(alpha = 0.4f))
-                                    .padding(horizontal = 10.dp, vertical = 4.dp)
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(
-                                    text = dateFormatted,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = Color(0xFFE2E8F0),
-                                    fontWeight = FontWeight.Medium
-                                )
+                                // Date pill
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(Color.Black.copy(alpha = 0.45f))
+                                        .padding(horizontal = 9.dp, vertical = 4.dp)
+                                ) {
+                                    Text(
+                                        text = dateFormatted,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = Color(0xFFE2E8F0),
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+
+                                // Interactive Period Badge (Morning ☀️ / Moonlit Night 🌙)
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(heroConfig.badgeColor.copy(alpha = 0.22f))
+                                        .border(1.dp, heroConfig.badgeColor.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                                        .clickable {
+                                            overridePeriod = when (effectivePeriod) {
+                                                WaqtiTimePeriod.MORNING -> WaqtiTimePeriod.NIGHT
+                                                WaqtiTimePeriod.NIGHT -> WaqtiTimePeriod.MORNING
+                                                WaqtiTimePeriod.AFTERNOON -> WaqtiTimePeriod.NIGHT
+                                            }
+                                        }
+                                        .padding(horizontal = 9.dp, vertical = 4.dp)
+                                ) {
+                                    Text(
+                                        text = heroConfig.badgeLabel,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = heroConfig.badgeColor,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
                             }
 
                             // Next Prayer pill badge
                             Card(
                                 shape = RoundedCornerShape(20.dp),
-                                colors = CardDefaults.cardColors(containerColor = Color(0xFF10B981).copy(alpha = 0.2f)),
-                                border = BorderStroke(1.dp, Color(0xFF10B981).copy(alpha = 0.4f)),
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFF10B981).copy(alpha = 0.22f)),
+                                border = BorderStroke(1.dp, Color(0xFF10B981).copy(alpha = 0.45f)),
                                 modifier = Modifier.clickable { viewModel.setCurrentTab(2) }
                             ) {
                                 Row(
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                                    modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Schedule,
                                         contentDescription = null,
                                         tint = Color(0xFF10B981),
-                                        modifier = Modifier.size(14.dp)
+                                        modifier = Modifier.size(13.dp)
                                     )
-                                    Spacer(modifier = Modifier.width(5.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
                                     Text(
                                         text = "${if (language == AppLanguage.ARABIC) nextPrayer.nameAr else nextPrayer.nameEn} ${nextPrayer.timeFormatted}",
                                         style = MaterialTheme.typography.labelSmall,
@@ -279,21 +417,19 @@ fun HomeScreen(
                             }
                         }
 
-                        // Bottom row: Greeting & Subtitle
+                        // Bottom row: Adaptive Greeting & Subtitle
                         Column {
-                            val displayName = currentUser?.name?.takeIf { it.isNotBlank() }
-                                ?: if (language == AppLanguage.ARABIC) "عبدالله محمد" else "Abdallah Mohammed"
                             Text(
-                                text = if (language == AppLanguage.ARABIC) "صباح الخير، $displayName 👋" else "Good morning, $displayName 👋",
-                                style = MaterialTheme.typography.headlineSmall,
+                                text = heroConfig.greeting,
+                                style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White
                             )
                             Spacer(modifier = Modifier.height(3.dp))
                             Text(
-                                text = if (language == AppLanguage.ARABIC) "إدارة الوقت .. وتنظيم المهام" else "Time Management & Daily Tasks Organizer",
+                                text = heroConfig.subtitle,
                                 style = MaterialTheme.typography.bodySmall,
-                                color = Color(0xFF94A3B8)
+                                color = Color(0xFFCBD5E1)
                             )
                         }
                     }

@@ -114,6 +114,7 @@ data class AdvancedNotificationSettings(
     val collisionMinSpacingMinutes: Int = 20,
     val minGapBetweenNotificationsMinutes: Int = 20,
     val collisionPreventionEnabled: Boolean = true,
+    val prayerAdvanceMinutes: Int = 10,
     val quietHoursEnabled: Boolean = true,
     val quietHoursStart: String = "23:00",
     val quietHoursEnd: String = "06:00",

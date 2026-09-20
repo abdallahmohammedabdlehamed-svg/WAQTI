@@ -91,13 +91,22 @@ fun MoreScreen(
     var activeSubSection by remember { mutableStateOf(0) } // 0: AI Assistant, 1: Analytics, 2: Pricing & Pro, 3: Account & Admin
     var chatInput by remember { mutableStateOf("") }
 
-    val quickPrompts = listOf(
-        "رتب يومي",
-        "اتأخرت",
-        "ماذا أفعل الآن؟",
-        "قسم لي مشروع Portfolio",
-        "خفف جدول اليوم",
-        "أسبوعك مع وقتي"
+    val quickPrompts = if (language == AppLanguage.ARABIC) listOf(
+        "أعد تنظيم يومي 🔄",
+        "لخص مهامي اليوم 📋",
+        "اقترح ورد قرآني 📖",
+        "جدولة مهمة عاجلة ⚡",
+        "ماذا أفعل الآن؟ 🤔",
+        "خفف جدول اليوم 🌿",
+        "أسبوعك مع وقتي 📊"
+    ) else listOf(
+        "Reschedule my day 🔄",
+        "Summarize today's tasks 📋",
+        "Suggest Quran routine 📖",
+        "Schedule urgent task ⚡",
+        "What should I do now? 🤔",
+        "Lighten my schedule 🌿",
+        "Weekly review 📊"
     )
 
     LazyColumn(
@@ -473,6 +482,7 @@ fun MoreScreen(
         } else if (activeSubSection == 2) {
             // PRICING & SUBSCRIPTION PRO
             item {
+                var isYearlyBilling by remember { mutableStateOf(true) }
                 Card(
                     shape = RoundedCornerShape(20.dp),
                     colors = CardDefaults.cardColors(containerColor = WaqtiPrimary.copy(alpha = 0.08f)),
@@ -487,9 +497,73 @@ fun MoreScreen(
                         ) {
                             Column {
                                 Text("WAQTI PRO", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold, color = WaqtiPrimary)
-                                Text("$4.99 / month  •  $39.99 / year", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                                Text(
+                                    text = if (isYearlyBilling)
+                                        (if (language == AppLanguage.ARABIC) "$3.33 / شهر ($39.99 سنوياً)" else "$3.33 / mo ($39.99/yr)")
+                                    else
+                                        (if (language == AppLanguage.ARABIC) "$4.99 / شهرياً" else "$4.99 / month"),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.SemiBold
+                                )
                             }
                             Icon(Icons.Default.Star, contentDescription = null, tint = WaqtiWarning, modifier = Modifier.size(32.dp))
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        // Billing Cycle Selector Toggle
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
+                                .padding(4.dp),
+                            horizontalArrangement = Arrangement.SpaceEvenly
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(if (!isYearlyBilling) WaqtiPrimary else Color.Transparent)
+                                    .clickable { isYearlyBilling = false }
+                                    .padding(vertical = 8.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = if (language == AppLanguage.ARABIC) "شهري ($4.99)" else "Monthly ($4.99)",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = if (!isYearlyBilling) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (!isYearlyBilling) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(if (isYearlyBilling) WaqtiPrimary else Color.Transparent)
+                                    .clickable { isYearlyBilling = true }
+                                    .padding(vertical = 8.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = if (language == AppLanguage.ARABIC) "سنوي ($39.99)" else "Yearly ($39.99)",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = if (isYearlyBilling) FontWeight.Bold else FontWeight.Medium,
+                                        color = if (isYearlyBilling) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(4.dp))
+                                            .background(WaqtiSuccess)
+                                            .padding(horizontal = 4.dp, vertical = 1.dp)
+                                    ) {
+                                        Text("خصم 33%", fontSize = 9.sp, color = Color.White, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
                         }
 
                         Spacer(modifier = Modifier.height(14.dp))

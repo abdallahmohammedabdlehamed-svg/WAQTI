@@ -87,15 +87,69 @@ import com.example.ui.screens.TasksScreen
 import com.example.ui.screens.TodayScreen
 import com.example.ui.theme.WaqtiPrimary
 import com.example.ui.theme.WaqtiTheme
+import android.Manifest
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
+import android.provider.Settings
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
+import com.example.notification.WaqtiNotificationChannels
 import com.example.ui.theme.WaqtiWarning
 import com.example.ui.viewmodel.WaqtiViewModel
 
 class MainActivity : ComponentActivity() {
     private val viewModel: WaqtiViewModel by viewModels()
 
+    private val notificationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        viewModel.onNotificationPermissionResult(isGranted)
+    }
+
+    fun launchNotificationPermissionRequest() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+            }
+            try {
+                startActivity(intent)
+            } catch (e: Exception) {
+                startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                    data = Uri.fromParts("package", packageName, null)
+                })
+            }
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        // 1. Create notification channels immediately
+        try {
+            WaqtiNotificationChannels.createChannels(this)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        // 2. Request runtime notification permission on Android 13+ (API 33+)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val permissionCheck = ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.POST_NOTIFICATIONS
+            )
+            if (permissionCheck != PackageManager.PERMISSION_GRANTED) {
+                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            } else {
+                viewModel.onNotificationPermissionResult(true)
+            }
+        } else {
+            viewModel.onNotificationPermissionResult(true)
+        }
 
         setContent {
             val language by viewModel.language.collectAsStateWithLifecycle()
@@ -107,6 +161,11 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        viewModel.checkNotificationStatus()
     }
 }
 
@@ -127,6 +186,14 @@ fun WaqtiApp(viewModel: WaqtiViewModel) {
     val authErrorMessage by viewModel.authErrorMessage.collectAsStateWithLifecycle()
 
     val showNotificationCenter by viewModel.showNotificationCenter.collectAsStateWithLifecycle()
+    val requestPermissionTrigger by viewModel.requestPermissionTrigger.collectAsStateWithLifecycle()
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    androidx.compose.runtime.LaunchedEffect(requestPermissionTrigger) {
+        if (requestPermissionTrigger > 0) {
+            (context as? MainActivity)?.launchNotificationPermissionRequest()
+        }
+    }
 
     if (!isUserAuthenticated || showAuthScreen) {
         AuthScreen(

@@ -44,6 +44,16 @@ object SmartNotificationEngine {
         val tasks = dao.getPlannedTasksForUser(userId).firstOrNull() ?: dao.getPlannedTasks().firstOrNull() ?: emptyList()
         val routines = dao.getAllRoutines().firstOrNull() ?: emptyList()
 
+        // Cancel all existing scheduled alarms in AlarmManager to avoid duplicate alarms firing
+        try {
+            val oldSchedules = dao.getAllSchedulesForUserDirect(userId)
+            oldSchedules.forEach { old ->
+                NotificationScheduler.cancelNotification(context, old)
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to cancel old alarms: ${e.message}")
+        }
+
         // Clear existing scheduled notifications to avoid duplicates
         dao.clearSchedulesForUser(userId)
 
@@ -392,9 +402,14 @@ object SmartNotificationEngine {
             }
         }
 
+        // Deduplicate candidates by unique source and time window
+        val uniqueCandidates = candidateSchedules.distinctBy {
+            "${it.type}::${it.sourceEntityType}::${it.sourceEntityId}::${it.scheduledAt / 60000}"
+        }
+
         // 11. QUIET HOURS FILTERING & COLLISION MANAGEMENT
         val filteredSchedules = filterQuietHoursAndLimit(
-            schedules = candidateSchedules,
+            schedules = uniqueCandidates,
             advancedSettings = advancedSettings
         )
 
@@ -513,7 +528,7 @@ object SmartNotificationEngine {
             "PRAYER" -> NotificationScheduleEntity(
                 title = "حان الآن وقت صلاة العصر 🕌",
                 body = "الله أكبر، الله أكبر. حان الآن موعد أذان العصر بتوقيت القاهرة.",
-                scheduledAt = System.currentTimeMillis() + 100,
+                scheduledAt = System.currentTimeMillis(),
                 type = "PRAYER",
                 priority = "CRITICAL",
                 channel = WaqtiNotificationChannels.CHANNEL_PRAYERS
@@ -521,7 +536,7 @@ object SmartNotificationEngine {
             "EXERCISE" -> NotificationScheduleEntity(
                 title = "تذكير التمرين الرياضي 💪",
                 body = "حان وقت التمرين البدني اليومي (45 دقيقة).",
-                scheduledAt = System.currentTimeMillis() + 100,
+                scheduledAt = System.currentTimeMillis(),
                 type = "EXERCISE",
                 priority = "NORMAL",
                 channel = WaqtiNotificationChannels.CHANNEL_EXERCISE
@@ -529,29 +544,47 @@ object SmartNotificationEngine {
             "QURAN_ROUTINE" -> NotificationScheduleEntity(
                 title = "ورد القرآن الكريم 📖",
                 body = "خصص 20 دقيقة لتلاوة الورد اليومي والتدبر في آيات الله.",
-                scheduledAt = System.currentTimeMillis() + 100,
+                scheduledAt = System.currentTimeMillis(),
                 type = "QURAN_ROUTINE",
                 priority = "NORMAL",
                 channel = WaqtiNotificationChannels.CHANNEL_QURAN
             )
+            "MORNING_AZKAR" -> NotificationScheduleEntity(
+                title = "حان وقت أذكار الصباح 🌿",
+                body = "أَصْبَحْنَا وَأَصْبَحَ الْمُلْكُ لِلَّهِ.. ابدأ يومك بسكينة وتوكل على الله.",
+                scheduledAt = System.currentTimeMillis(),
+                type = "MORNING_AZKAR",
+                priority = "NORMAL",
+                channel = WaqtiNotificationChannels.CHANNEL_AZKAR
+            )
+            "EVENING_AZKAR" -> NotificationScheduleEntity(
+                title = "حان وقت أذكار المساء 🌙",
+                body = "أَمْسَيْنَا وَأَمْسَى الْمُلْكُ لِلَّهِ.. حصّن نفسك بنور الذكر والسكينة.",
+                scheduledAt = System.currentTimeMillis(),
+                type = "EVENING_AZKAR",
+                priority = "NORMAL",
+                channel = WaqtiNotificationChannels.CHANNEL_AZKAR
+            )
             else -> NotificationScheduleEntity(
                 title = "مهمتك التالية: العمل على الـPortfolio ⏱️",
                 body = "متبقي 15 دقيقة على البدء. هل أنت جاهز للتركيز؟",
-                scheduledAt = System.currentTimeMillis() + 100,
+                scheduledAt = System.currentTimeMillis(),
                 type = "TASKS",
                 priority = "HIGH",
                 channel = WaqtiNotificationChannels.CHANNEL_TASKS
             )
         }
 
-        val intent = android.content.Intent(context, NotificationReceiver::class.java).apply {
-            putExtra("schedule_id", System.currentTimeMillis() % 100000)
-            putExtra("type", schedule.type)
-            putExtra("title", schedule.title)
-            putExtra("body", schedule.body)
-            putExtra("channel", schedule.channel)
-            putExtra("priority", schedule.priority)
-        }
-        context.sendBroadcast(intent)
+        WaqtiNotificationPoster.showNotification(
+            context = context,
+            scheduleId = System.currentTimeMillis() % 100000,
+            type = schedule.type,
+            title = schedule.title,
+            body = schedule.body,
+            channelId = schedule.channel,
+            priorityStr = schedule.priority,
+            sourceEntityType = "TEST",
+            sourceEntityId = category
+        )
     }
 }

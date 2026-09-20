@@ -47,6 +47,24 @@ interface WaqtiDao {
     @Query("DELETE FROM tasks WHERE userId = :userId")
     suspend fun deleteTasksForUser(userId: String)
 
+    @Query("SELECT COUNT(*) FROM tasks")
+    suspend fun getTaskCount(): Int
+
+    @Query("SELECT * FROM tasks")
+    suspend fun getAllTasksDirect(): List<TaskEntity>
+
+    @Query("DELETE FROM tasks WHERE id IN (:ids)")
+    suspend fun deleteTasksByIds(ids: List<Long>)
+
+    @Query("SELECT COUNT(*) FROM routines")
+    suspend fun getRoutineCount(): Int
+
+    @Query("SELECT * FROM routines")
+    suspend fun getAllRoutinesDirect(): List<RoutineEntity>
+
+    @Query("DELETE FROM routines WHERE id IN (:ids)")
+    suspend fun deleteRoutinesByIds(ids: List<Long>)
+
     // Routines (Daily Program)
     @Query("SELECT * FROM routines ORDER BY time ASC")
     fun getAllRoutines(): Flow<List<RoutineEntity>>
@@ -148,6 +166,9 @@ interface WaqtiDao {
 
     @Query("DELETE FROM notification_schedules WHERE userId = :userId")
     suspend fun clearSchedulesForUser(userId: String)
+
+    @Query("SELECT * FROM notification_schedules WHERE userId = :userId")
+    suspend fun getAllSchedulesForUserDirect(userId: String): List<com.example.data.notification.NotificationScheduleEntity>
 
     // Notification Logs
     @Query("SELECT * FROM notification_logs WHERE userId = :userId ORDER BY deliveredAt DESC LIMIT 100")
