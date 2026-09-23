@@ -78,14 +78,8 @@ fun PrayersTabContent(
     val prayerTimes = remember(settings) { PrayerCalculator.getPrayerTimes(settings = settings) }
     val nextPrayer = remember(settings) { PrayerCalculator.getNextPrayer(settings = settings) }
 
-    // Coordinates for city
-    val matchedCity = remember(settings.city) {
-        PrayerCalculator.supportedCities.find {
-            it.nameAr.contains(settings.city) || it.nameEn.contains(settings.city)
-        } ?: PrayerCalculator.supportedCities[0]
-    }
-    val qiblaAngle = remember(matchedCity) {
-        PrayerCalculator.calculateQibla(matchedCity.latitude, matchedCity.longitude).toInt()
+    val qiblaAngle = remember(settings.latitude, settings.longitude) {
+        PrayerCalculator.calculateQibla(settings.latitude, settings.longitude).toInt()
     }
 
     Column(
@@ -222,7 +216,7 @@ fun PrayersTabContent(
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = if (isArabic) "زاوية القبلة: $qiblaAngle° من الشمال (${matchedCity.nameAr})" else "Azimuth: $qiblaAngle° N (${matchedCity.nameEn})",
+                            text = if (isArabic) "زاوية القبلة: $qiblaAngle° من الشمال (${settings.cityName})" else "Azimuth: $qiblaAngle° N (${settings.cityName})",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

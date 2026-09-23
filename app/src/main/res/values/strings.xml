@@ -1,3 +1,8 @@
 <resources>
     <string name="app_name">WAQTI</string>
+    <string name="adhan_audio_label">Adhan</string>
+    <string name="adhan_volume_label">Adhan Volume</string>
+    <string name="adhan_test_label">Test Adhan</string>
+    <string name="adhan_stop_label">Stop Adhan</string>
+    <string name="adhan_notification_body">Come to prayer • Come to success</string>
 </resources>

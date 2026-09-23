@@ -63,6 +63,19 @@ import com.example.ui.theme.WaqtiSuccess
 import com.example.ui.theme.WaqtiWarning
 import com.example.ui.viewmodel.WaqtiViewModel
 
+data class TimelineItem(
+    val id: String,
+    val time: String,
+    val title: String,
+    val subtitle: String,
+    val durationMin: Int,
+    val isProtected: Boolean,
+    val isCompleted: Boolean,
+    val isRoutine: Boolean,
+    val priority: String,
+    val rawTask: TaskEntity? = null
+)
+
 @Composable
 fun TodayScreen(
     viewModel: WaqtiViewModel,
@@ -77,20 +90,6 @@ fun TodayScreen(
     var newTaskDuration by remember { mutableStateOf("45") }
     var newTaskPriority by remember { mutableStateOf("MEDIUM") }
     var addTaskError by remember { mutableStateOf<String?>(null) }
-
-    // Combine tasks and routines into a unified timeline
-    data class TimelineItem(
-        val id: String,
-        val time: String,
-        val title: String,
-        val subtitle: String,
-        val durationMin: Int,
-        val isProtected: Boolean,
-        val isCompleted: Boolean,
-        val isRoutine: Boolean,
-        val priority: String,
-        val rawTask: TaskEntity? = null
-    )
 
     val timelineItems = remember(tasks, routines, language) {
         val taskItems = tasks.map { t ->
@@ -301,59 +300,22 @@ fun TodayScreen(
 
 @Composable
 private fun TimelineCard(
-    item: Any,
+    item: TimelineItem,
     language: AppLanguage,
     onToggleComplete: () -> Unit,
     onStartFocus: () -> Unit,
     onBreakdown: () -> Unit
 ) {
-    val title: String
-    val subtitle: String
-    val time: String
-    val durationMin: Int
-    val isProtected: Boolean
-    val isCompleted: Boolean
-    val isRoutine: Boolean
-    val priority: String
-    val isRawTask: Boolean
-
-    // Using reflection-safe local mapping
-    val timeVal: String
-    val titleVal: String
-    val subVal: String
-    val durVal: Int
-    val protVal: Boolean
-    val compVal: Boolean
-    val routVal: Boolean
-    val prioVal: String
-    val hasTask: Boolean
-
-    // Extract fields
-    try {
-        val clazz = item.javaClass
-        timeVal = clazz.getDeclaredField("time").apply { isAccessible = true }.get(item) as String
-        titleVal = clazz.getDeclaredField("title").apply { isAccessible = true }.get(item) as String
-        subVal = clazz.getDeclaredField("subtitle").apply { isAccessible = true }.get(item) as String
-        durVal = clazz.getDeclaredField("durationMin").apply { isAccessible = true }.get(item) as Int
-        protVal = clazz.getDeclaredField("isProtected").apply { isAccessible = true }.get(item) as Boolean
-        compVal = clazz.getDeclaredField("isCompleted").apply { isAccessible = true }.get(item) as Boolean
-        routVal = clazz.getDeclaredField("isRoutine").apply { isAccessible = true }.get(item) as Boolean
-        prioVal = clazz.getDeclaredField("priority").apply { isAccessible = true }.get(item) as String
-        hasTask = clazz.getDeclaredField("rawTask").apply { isAccessible = true }.get(item) != null
-    } catch (e: Exception) {
-        return
-    }
-
     val cardBg = when {
-        compVal -> MaterialTheme.colorScheme.surface.copy(alpha = 0.6f)
-        protVal -> WaqtiPrayerAccent.copy(alpha = 0.08f)
+        item.isCompleted -> MaterialTheme.colorScheme.surface.copy(alpha = 0.6f)
+        item.isProtected -> WaqtiPrayerAccent.copy(alpha = 0.08f)
         else -> MaterialTheme.colorScheme.surface
     }
 
     Card(
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(containerColor = cardBg),
-        elevation = CardDefaults.cardElevation(defaultElevation = if (compVal) 0.dp else 2.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (item.isCompleted) 0.dp else 2.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
@@ -368,13 +330,13 @@ private fun TimelineCard(
                 modifier = Modifier.width(54.dp)
             ) {
                 Text(
-                    text = timeVal,
+                    text = item.time,
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
-                    color = if (protVal) WaqtiPrayerAccent else WaqtiPrimary
+                    color = if (item.isProtected) WaqtiPrayerAccent else WaqtiPrimary
                 )
                 Text(
-                    text = "$durVal m",
+                    text = "${item.durationMin} m",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -385,23 +347,23 @@ private fun TimelineCard(
                     .padding(horizontal = 10.dp)
                     .width(2.dp)
                     .height(38.dp)
-                    .background(if (protVal) WaqtiPrayerAccent.copy(alpha = 0.4f) else WaqtiPrimary.copy(alpha = 0.2f))
+                    .background(if (item.isProtected) WaqtiPrayerAccent.copy(alpha = 0.4f) else WaqtiPrimary.copy(alpha = 0.2f))
             )
 
             // Content Column
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = titleVal,
+                        text = item.title,
                         style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = if (compVal) FontWeight.Normal else FontWeight.Bold,
-                        color = if (compVal) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+                        fontWeight = if (item.isCompleted) FontWeight.Normal else FontWeight.Bold,
+                        color = if (item.isCompleted) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f)
                     )
 
-                    if (protVal) {
+                    if (item.isProtected) {
                         Spacer(modifier = Modifier.width(6.dp))
                         Icon(
                             imageVector = Icons.Default.Lock,
@@ -415,12 +377,12 @@ private fun TimelineCard(
                 Spacer(modifier = Modifier.height(2.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = subVal,
+                        text = item.subtitle,
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
-                    if (hasTask && !compVal) {
+                    if (item.rawTask != null && !item.isCompleted) {
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = Strings.breakdownWithAi(language),
@@ -434,7 +396,7 @@ private fun TimelineCard(
             }
 
             // Actions
-            if (hasTask && !compVal) {
+            if (item.rawTask != null && !item.isCompleted) {
                 IconButton(onClick = onStartFocus) {
                     Icon(Icons.Default.PlayArrow, contentDescription = "Focus", tint = WaqtiPrimary)
                 }
@@ -442,9 +404,9 @@ private fun TimelineCard(
 
             IconButton(onClick = onToggleComplete) {
                 Icon(
-                    imageVector = if (compVal) Icons.Default.CheckCircle else Icons.Outlined.CheckCircleOutline,
+                    imageVector = if (item.isCompleted) Icons.Default.CheckCircle else Icons.Outlined.CheckCircleOutline,
                     contentDescription = null,
-                    tint = if (compVal) WaqtiSuccess else MaterialTheme.colorScheme.onSurfaceVariant
+                    tint = if (item.isCompleted) WaqtiSuccess else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }

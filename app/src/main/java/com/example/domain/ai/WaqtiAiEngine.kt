@@ -19,15 +19,6 @@ data class RescheduleResult(
     val updatedTasks: List<TaskEntity>
 )
 
-data class AiChatMessage(
-    val id: String = java.util.UUID.randomUUID().toString(),
-    val sender: String, // "USER" or "WAQTI"
-    val textAr: String,
-    val textEn: String,
-    val time: String = "10:30",
-    val suggestionAction: String? = null // e.g. "APPLY_RESCHEDULE", "BREAKDOWN_TASK"
-)
-
 object WaqtiAiEngine {
 
     // 1. SMART RESCHEDULING ENGINE ("أعد تنظيم يومي")
@@ -40,9 +31,8 @@ object WaqtiAiEngine {
         val protectedTimeSlots = mutableListOf<Pair<Int, Int>>() // Pair of startMin to endMin
 
         // Add protected routines (prayers & fixed meetings)
-        for (p in prayerTimes) {
-            val parts = p.timeFormatted.split(":")
-            val min = parts[0].toInt() * 60 + parts[1].toInt()
+        for (p in prayerTimes.filter { it.isPrescribedPrayer }) {
+            val min = p.rawMinutesOfDay
             protectedTimeSlots.add(Pair(min, min + 25))
         }
         for (r in routines.filter { it.isProtected }) {
@@ -166,17 +156,30 @@ object WaqtiAiEngine {
                 "ربط بوابة الدفع الإلكتروني والتحقق الأمني",
                 "إجراء اختبارات الشراء والتسليم"
             )
-            lower.contains("javascript") || lower.contains("برمجة") || lower.contains("study") || lower.contains("دراسة") -> listOf(
-                "فهم المبادئ الأساسية وتطبيق 3 أمثلة حية",
-                "حل مسألتين برمجيتين لتثبيت المفاهيم",
-                "كتابة ملاحظات وتلخيص الأخطاء الشائعة",
-                "بناء مشروع مصغر يدمج ما تم تعلمه"
+            lower.contains("javascript") || lower.contains("برمجة") || lower.contains("code") || lower.contains("python") || lower.contains("kotlin") -> listOf(
+                "تحديد المتطلبات وهيكلية الكود الرئيسية",
+                "إعداد بيئة العمل والتبعيات اللازمة",
+                "بناء الوظيفة الأساسية واختبار المنطق الداخلي",
+                "معالجة حالات الخطأ والمدخلات غير المتوقعة",
+                "تحسين الأداء وكتابة الاختبارات التلقائية"
+            )
+            lower.contains("study") || lower.contains("دراسة") || lower.contains("مذاكرة") || lower.contains("امتحان") -> listOf(
+                "مراجعة الفهرس وتحديد المفاهيم الأساسية",
+                "تلخيص النقاط الصعبة والرسومات التوضيحية",
+                "حل تدريبات وأسئلة امتحانات سابقة",
+                "المراجعة السريعة وتثبيت المعلومات بالاسترجاع الفعال"
+            )
+            lower.contains("بحث") || lower.contains("كتابة") || lower.contains("مقالة") || lower.contains("تقرير") -> listOf(
+                "تحديد موضوع البحث والأسئلة الرئيسية",
+                "جمع المراجع والمصادر الموثوقة",
+                "كتابة المسودة الأولى والهيكل العام",
+                "التدقيق اللغوي وإضافة المراجع والتنسيق النهائي"
             )
             else -> listOf(
-                "توضيح الهدف النهائي للمهمة بدقة",
-                "تجهيز المتطلبات والأدوات اللازمة",
-                "تنفيذ الجزء الأساسي الأول (30 دقيقة)",
-                "المراجعة والتنقيح واستكمال اللمسات الأخيرة"
+                "توضيح الهدف النهائي للمهمة بدقة والمعايير المطلوبة",
+                "تجهيز المتطلبات والأدوات اللازمة لبدء العمل",
+                "تنفيذ الجزء الأساسي الأول في جلسة تركيز (30 دقيقة)",
+                "المراجعة والتنقيح واستكمال اللمسات الأخيرة واعتماد النتيجة"
             )
         }
     }
@@ -203,82 +206,38 @@ object WaqtiAiEngine {
         )
     }
 
-    // 5. LIVE CHATGPT & CONVERSATIONAL ASSISTANT
+    // 5. WAQTI AI 2.0 CONVERSATIONAL ENGINE
+    suspend fun queryAiAssistant(
+        query: String,
+        history: List<AiChatMessage> = emptyList(),
+        context: WaqtiAiContext? = null,
+        lang: AppLanguage = AppLanguage.ARABIC
+    ): AiChatMessage = withContext(Dispatchers.IO) {
+        val structuredResult = WaqtiAiService.queryGemini(query, history, context, lang)
+        val suggestion = structuredResult.action?.actionType ?: when (structuredResult.intent) {
+            AiIntent.RESCHEDULE_DAY -> "APPLY_RESCHEDULE"
+            AiIntent.IM_BEHIND -> "IM_BEHIND"
+            AiIntent.BREAKDOWN_TASK -> "BREAKDOWN_TASK"
+            AiIntent.START_FOCUS -> "START_FOCUS"
+            else -> null
+        }
+
+        AiChatMessage(
+            sender = "WAQTI",
+            textAr = structuredResult.message,
+            textEn = structuredResult.message,
+            suggestionAction = suggestion,
+            actionPayload = structuredResult.action
+        )
+    }
+
+    // Backward-compatible query wrapper
     suspend fun queryChatGpt(
         query: String,
         lang: AppLanguage,
         customApiKey: String? = null
     ): AiChatMessage = withContext(Dispatchers.IO) {
-        val q = query.trim()
-        val isAr = lang == AppLanguage.ARABIC
-
-        // Try Live ChatGPT API (Free Endpoint)
-        try {
-            val url = URL("https://text.pollinations.ai/")
-            val conn = (url.openConnection() as HttpURLConnection).apply {
-                requestMethod = "POST"
-                connectTimeout = 6500
-                readTimeout = 8500
-                doOutput = true
-                doInput = true
-                setRequestProperty("Content-Type", "application/json; charset=UTF-8")
-                setRequestProperty("User-Agent", "WaqtiTimeOS/1.0")
-            }
-
-            val systemPrompt = if (isAr) {
-                "أنت مساعد وقتي الذكي المدعوم بـ ChatGPT لإدارة الوقت، تنظيم المهام، وموازنة الحياة اليومية للمستخدمين باللغة العربية. " +
-                "قدم إجابات احترافية، عملية، وموجزة، ومنسقة بنقاط واضحة. كن محفزاً وواقعياً، وراعِ أوقات الصلاة والتركيز والراحة."
-            } else {
-                "You are Waqti AI Assistant powered by ChatGPT for time management, daily task scheduling, and mindful productivity. " +
-                "Provide professional, actionable, concise, and beautifully structured responses with practical bullet points."
-            }
-
-            val jsonBody = JSONObject().apply {
-                val messagesArray = JSONArray().apply {
-                    put(JSONObject().apply {
-                        put("role", "system")
-                        put("content", systemPrompt)
-                    })
-                    put(JSONObject().apply {
-                        put("role", "user")
-                        put("content", q)
-                    })
-                }
-                put("messages", messagesArray)
-                put("model", "openai")
-                put("temperature", 0.7)
-            }
-
-            conn.outputStream.use { os ->
-                val input = jsonBody.toString().toByteArray(Charsets.UTF_8)
-                os.write(input, 0, input.size)
-            }
-
-            val responseCode = conn.responseCode
-            if (responseCode in 200..299) {
-                val responseText = conn.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }.trim()
-                if (responseText.isNotBlank()) {
-                    val lower = q.lowercase()
-                    val suggestion = when {
-                        lower.contains("رتب") || lower.contains("نظم") || lower.contains("reschedule") -> "APPLY_RESCHEDULE"
-                        lower.contains("اتأخرت") || lower.contains("behind") || lower.contains("متأخر") -> "IM_BEHIND"
-                        lower.contains("قسم") || lower.contains("breakdown") -> "BREAKDOWN_TASK"
-                        else -> null
-                    }
-                    return@withContext AiChatMessage(
-                        sender = "WAQTI",
-                        textAr = responseText,
-                        textEn = responseText,
-                        suggestionAction = suggestion
-                    )
-                }
-            }
-        } catch (e: Exception) {
-            // Log and fallback to local engine
-        }
-
-        // Instant local expert fallback
-        return@withContext getAssistantResponse(query, lang)
+        queryAiAssistant(query, emptyList(), null, lang)
     }
 
     // Fallback Conversational Assistant Responder
@@ -290,42 +249,48 @@ object WaqtiAiEngine {
             q.contains("رتب") || q.contains("نظم") || q.contains("plan") || q.contains("schedule") -> {
                 AiChatMessage(
                     sender = "WAQTI",
-                    textAr = "قمت بمراجعة مهامك وصلواتك المتبقية. أنصح بالتركيز الآن على العمل على الـPortfolio لمدة 45 دقيقة قبل استراحة الظهر. هل تحب أن أطبق إعادة الجدولة؟",
-                    textEn = "I analyzed your remaining tasks and prayer times. I recommend focusing on your Portfolio for 45 mins before Dhuhr break. Would you like me to apply the schedule?",
-                    suggestionAction = "APPLY_RESCHEDULE"
+                    textAr = "قمت بمراجعة مهامك وصلواتك المتبقية. أستطيع إعادة جدولة المهام بما يحمي أوقات الصلاة والراحة. هل تحب تطبيق إعادة الجدولة؟",
+                    textEn = "I reviewed your schedule. I can reschedule your tasks to safeguard prayer and rest times. Would you like to apply the reschedule?",
+                    suggestionAction = "APPLY_RESCHEDULE",
+                    actionPayload = AiActionPayload(actionType = "APPLY_RESCHEDULE", requiresConfirmation = true)
                 )
             }
             q.contains("اتأخرت") || q.contains("behind") || q.contains("late") || q.contains("متأخر") -> {
                 AiChatMessage(
                     sender = "WAQTI",
-                    textAr = "ولا يهمك يا بطل. الحياة مليئة بالمفاجآت. لقد جهزت خطة مخففة تركز على الضروري فقط وتؤجل الباقي بدون أي ضغط.",
+                    textAr = "ولا يهمك، الحياة مليئة بالمفاجآت. لقد جهزت خطة مخففة تركز على الضروري فقط وتؤجل الباقي بدون أي ضغط.",
                     textEn = "No worries at all! Life happens. I've prepared a relaxed plan focusing only on essentials and safely postponing the rest.",
-                    suggestionAction = "IM_BEHIND"
+                    suggestionAction = "IM_BEHIND",
+                    actionPayload = AiActionPayload(actionType = "IM_BEHIND", requiresConfirmation = true)
                 )
             }
             q.contains("ماذا أفعل") || q.contains("what should i do") || q.contains("الآن") -> {
                 AiChatMessage(
                     sender = "WAQTI",
-                    textAr = "أفضل استثمار لوقتك الآن: العمل على الـPortfolio لمدة 45 دقيقة بأقصى تركيز. يمكنك بدء جلسة التركيز العميق بضغطة واحدة.",
-                    textEn = "Best investment of your time right now: Work on Portfolio for 45 minutes of deep focus. You can start the focus timer with one tap.",
-                    suggestionAction = "START_FOCUS"
+                    textAr = "أنصحك بمراجعة المهمة التالية والبدء بجلسة تركيز عميق لمدة 25-45 دقيقة مع الاستعانة بالله.",
+                    textEn = "I recommend checking your next upcoming task and starting a 25-45 min deep focus session.",
+                    suggestionAction = "START_FOCUS",
+                    actionPayload = AiActionPayload(actionType = "START_FOCUS", requiresConfirmation = false)
                 )
             }
             q.contains("قسم") || q.contains("breakdown") || q.contains("مشروع") -> {
+                val steps = breakdownTask(query)
                 AiChatMessage(
                     sender = "WAQTI",
-                    textAr = "سأقوم بتقسيم هذا المشروع إلى 5 خطوات تنفيذية متسلسلة وقابلة للإنجاز الفوري.",
-                    textEn = "I will break this project into 5 actionable, sequential steps ready to execute.",
-                    suggestionAction = "BREAKDOWN_TASK"
+                    textAr = "إليك تقسيم مقترح للخطوات التنفيذية:\n\n" + steps.mapIndexed { i, s -> "${i+1}. $s" }.joinToString("\n"),
+                    textEn = "Here is an actionable breakdown:\n\n" + steps.mapIndexed { i, s -> "${i+1}. $s" }.joinToString("\n"),
+                    suggestionAction = "BREAKDOWN_TASK",
+                    actionPayload = AiActionPayload(actionType = "BREAKDOWN_TASK", breakdownSteps = steps, requiresConfirmation = true)
                 )
             }
             else -> {
                 AiChatMessage(
                     sender = "WAQTI",
-                    textAr = if (isAr) "أهلاً بك! أنا مساعد وقتي الذكي المدعوم بـ ChatGPT المجاني. يمكنني مساعدتك في تنظيم يومك، إعادة ترتيب المواعيد عند التأخر، تقسيم الأهداف الكبيرة، وتقديم نصائح إنتاجية احترافية. كيف أساعدك الآن؟" else "Welcome! I'm your Waqti AI Assistant powered by free ChatGPT. I can organize your day, reschedule after delays, break down big goals, or provide productivity coaching. How can I help you right now?",
-                    textEn = "Welcome! I'm your Waqti AI Assistant powered by free ChatGPT. I can organize your day, reschedule after delays, break down big goals, or provide productivity coaching. How can I help you right now?"
+                    textAr = if (isAr) "مرحبًا بك في مساعد وقتي الذكي! كيف أساعدك اليوم في تنظيم وقتك أو الإجابة على استفساراتك؟" else "Welcome to Waqti AI Assistant! How can I help you organize your time or answer your questions today?",
+                    textEn = "Welcome to Waqti AI Assistant! How can I help you organize your time or answer your questions today?"
                 )
             }
         }
     }
 }
+

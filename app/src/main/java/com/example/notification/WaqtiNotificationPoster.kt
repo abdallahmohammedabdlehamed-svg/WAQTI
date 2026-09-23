@@ -68,6 +68,29 @@ object WaqtiNotificationPoster {
             }
             recentNotifications[dedupeKey] = now
 
+            val audioPrefs = com.example.audio.WaqtiAudioPreferences.getInstance(context)
+            val audioSettings = audioPrefs.getSettings()
+
+            // Check Master Notifications toggle
+            if (!audioSettings.masterNotificationsEnabled) {
+                Log.d(TAG, "Suppressed notification because masterNotificationsEnabled is false")
+                return
+            }
+
+            // Check runtime quiet hours
+            if (audioPrefs.isInQuietHours()) {
+                val isPrayer = type == "PRAYER"
+                val isCritical = priorityStr == "CRITICAL"
+                if (isPrayer && !audioSettings.quietHoursAllowPrayers) {
+                    Log.d(TAG, "Suppressed prayer notification during quiet hours per user setting")
+                    return
+                }
+                if (!isPrayer && (!isCritical || !audioSettings.quietHoursAllowCritical)) {
+                    Log.d(TAG, "Suppressed non-critical notification ($type) during quiet hours")
+                    return
+                }
+            }
+
             // 1. Ensure all notification channels exist
             WaqtiNotificationChannels.createChannels(context)
 
@@ -99,10 +122,31 @@ object WaqtiNotificationPoster {
                 else -> NotificationCompat.PRIORITY_DEFAULT
             }
 
-            val defaultSoundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+            // Determine if sound is permitted for this specific category
+            val isSoundAllowed = audioSettings.masterSoundEnabled && when (type) {
+                "TASKS" -> audioSettings.taskReminderSoundEnabled
+                "PRAYER" -> audioSettings.prayerNotificationEnabled
+                "FOCUS" -> audioSettings.focusSoundEnabled
+                "AI_SUGGESTIONS" -> audioSettings.aiNotificationSoundEnabled
+                "QURAN_ROUTINE" -> audioSettings.quranReminderSoundEnabled
+                "MORNING_AZKAR", "EVENING_AZKAR" -> audioSettings.azkarReminderSoundEnabled
+                else -> true
+            }
+
+            // Map target channel to v2 channel
+            val effectiveChannelId = when (type) {
+                "PRAYER" -> WaqtiNotificationChannels.CHANNEL_PRAYERS_V2
+                "TASKS" -> WaqtiNotificationChannels.CHANNEL_TASKS_V2
+                "FOCUS" -> WaqtiNotificationChannels.CHANNEL_FOCUS_V2
+                "QURAN_ROUTINE" -> WaqtiNotificationChannels.CHANNEL_QURAN_V2
+                "MORNING_AZKAR", "EVENING_AZKAR" -> WaqtiNotificationChannels.CHANNEL_AZKAR_V2
+                "EXERCISE" -> WaqtiNotificationChannels.CHANNEL_EXERCISE_V2
+                "AI_SUGGESTIONS" -> WaqtiNotificationChannels.CHANNEL_AI_V2
+                else -> WaqtiNotificationChannels.CHANNEL_REMINDERS_V2
+            }
 
             // 3. Build notification
-            val builder = NotificationCompat.Builder(context, channelId)
+            val builder = NotificationCompat.Builder(context, effectiveChannelId)
                 .setSmallIcon(R.drawable.ic_waqti_clock_symbol)
                 .setContentTitle(title)
                 .setContentText(body)
@@ -110,9 +154,20 @@ object WaqtiNotificationPoster {
                 .setPriority(priorityCompat)
                 .setAutoCancel(true)
                 .setContentIntent(openAppPendingIntent)
-                .setSound(defaultSoundUri)
                 .setColor(0xFF00A3FF.toInt()) // Vibrant Waqti Primary Blue
-                .setVibrate(longArrayOf(0, 300, 200, 300))
+
+            if (isSoundAllowed) {
+                val defaultSoundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+                builder.setSound(defaultSoundUri)
+            } else {
+                builder.setSilent(true)
+            }
+
+            if (audioSettings.masterVibrationEnabled) {
+                builder.setVibrate(longArrayOf(0, 300, 200, 300))
+            } else {
+                builder.setVibrate(null)
+            }
 
             // 4. Context-sensitive interactive action buttons
             when (type) {

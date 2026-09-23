@@ -30,8 +30,16 @@ object SmartNotificationEngine {
     suspend fun recalculateAndScheduleAll(
         context: Context,
         advancedSettings: AdvancedNotificationSettings = AdvancedNotificationSettings(),
-        prayerCalcSettings: PrayerLocationAndCalcSettings = PrayerLocationAndCalcSettings()
+        prayerCalcSettings: PrayerLocationAndCalcSettings? = null
     ): List<NotificationScheduleEntity> {
+        val effectivePrayerSettings = prayerCalcSettings
+            ?: com.example.data.prayer.WaqtiLocationPreferences.getInstance(context).getSettings()
+
+        Log.d(
+            "WAQTI_PRAYER_DEBUG",
+            "SmartNotificationEngine: Recalculating and scheduling alarms for ${effectivePrayerSettings.cityName}, ${effectivePrayerSettings.governorate} (Lat ${effectivePrayerSettings.latitude}, Lon ${effectivePrayerSettings.longitude})"
+        )
+
         val db = WaqtiDatabase.getInstance(context)
         val dao = db.waqtiDao()
 
@@ -71,8 +79,18 @@ object SmartNotificationEngine {
         // 1. PRAYER NOTIFICATIONS (Critical & High Priority)
         val prayerPref = prefMap["PRAYER"]
         if (prayerPref?.enabled != false) {
-            val prayerTimes = PrayerCalculator.getPrayerTimes(Date(), prayerCalcSettings)
-            prayerTimes.forEach { p ->
+            val prayerTimes = PrayerCalculator.getPrayerTimes(Date(), effectivePrayerSettings)
+            prayerTimes.filter { it.isPrescribedPrayer }.forEach { p ->
+                val isPrayerEnabled = when (p.nameEn) {
+                    "Fajr" -> effectivePrayerSettings.fajrEnabled
+                    "Dhuhr" -> effectivePrayerSettings.dhuhrEnabled
+                    "Asr" -> effectivePrayerSettings.asrEnabled
+                    "Maghrib" -> effectivePrayerSettings.maghribEnabled
+                    "Isha" -> effectivePrayerSettings.ishaEnabled
+                    else -> true
+                }
+                if (!isPrayerEnabled) return@forEach
+
                 val prayerCal = Calendar.getInstance().apply {
                     set(Calendar.HOUR_OF_DAY, p.rawMinutesOfDay / 60)
                     set(Calendar.MINUTE, p.rawMinutesOfDay % 60)
@@ -109,7 +127,7 @@ object SmartNotificationEngine {
                                 userId = userId,
                                 type = "PRAYER",
                                 title = "حان الآن وقت صلاة ${p.nameAr} 🕌",
-                                body = "الله أكبر، الله أكبر. حان الآن موعد أذان ${p.nameAr} حسب توقيت ${prayerCalcSettings.city}.",
+                                body = "الله أكبر، الله أكبر. حان الآن موعد أذان ${p.nameAr} حسب توقيت ${effectivePrayerSettings.city}.",
                                 scheduledAt = atTimeMillis,
                                 priority = "CRITICAL",
                                 channel = WaqtiNotificationChannels.CHANNEL_PRAYERS,

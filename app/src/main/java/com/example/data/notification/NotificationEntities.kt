@@ -81,16 +81,19 @@ data class SinglePrayerConfig(
 
 /**
  * Prayer calculation & Location Settings
+ * Default: Mansoura, Dakahlia, Egypt (Lat: 31.0409, Lon: 31.3785)
  */
 data class PrayerLocationAndCalcSettings(
     val isAutoLocation: Boolean = true,
     val country: String = "مصر (Egypt)",
-    val cityName: String = "القاهرة",
-    val city: String = "القاهرة (Cairo)",
-    val latitude: Double = 30.0444,
-    val longitude: Double = 31.2357,
-    val calcMethod: String = "EGYPTIAN",
-    val calculationMethod: String = "EGYPTIAN",
+    val countryName: String = "مصر",
+    val governorate: String = "الدقهلية",
+    val cityName: String = "المنصورة",
+    val city: String = "المنصورة، الدقهلية",
+    val latitude: Double = 31.0409,
+    val longitude: Double = 31.3785,
+    val calcMethod: String = "EGYPTIAN_GENERAL_SURVEY",
+    val calculationMethod: String = "EGYPTIAN_GENERAL_SURVEY",
     val fajrEnabled: Boolean = true,
     val dhuhrEnabled: Boolean = true,
     val asrEnabled: Boolean = true,
@@ -102,7 +105,8 @@ data class PrayerLocationAndCalcSettings(
     val asrOffset: Int = 0,
     val maghribOffset: Int = 0,
     val ishaOffset: Int = 0,
-    val is24HourFormat: Boolean = false
+    val is24HourFormat: Boolean = false,
+    val locationSource: String = "DEFAULT" // "GPS", "MANUAL", "DEFAULT"
 )
 
 /**

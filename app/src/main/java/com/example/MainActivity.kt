@@ -136,17 +136,13 @@ class MainActivity : ComponentActivity() {
             e.printStackTrace()
         }
 
-        // 2. Request runtime notification permission on Android 13+ (API 33+)
+        // 2. Check runtime notification permission status on Android 13+ (API 33+)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             val permissionCheck = ContextCompat.checkSelfPermission(
                 this,
                 Manifest.permission.POST_NOTIFICATIONS
             )
-            if (permissionCheck != PackageManager.PERMISSION_GRANTED) {
-                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-            } else {
-                viewModel.onNotificationPermissionResult(true)
-            }
+            viewModel.onNotificationPermissionResult(permissionCheck == PackageManager.PERMISSION_GRANTED)
         } else {
             viewModel.onNotificationPermissionResult(true)
         }
@@ -166,6 +162,7 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         viewModel.checkNotificationStatus()
+        viewModel.recalculateNotifications()
     }
 }
 

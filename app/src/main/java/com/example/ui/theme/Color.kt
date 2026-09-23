@@ -43,10 +43,22 @@ val WaqtiQuranAccent = Color(0xFF0D9488)
 val WaqtiAzkarAccent = Color(0xFF8B5CF6)
 val WaqtiFocusAccent = Color(0xFFF97316)
 
+// Modern Premium Dark-First Design Tokens
+val WaqtiDarkBackground = Color(0xFF070D1A)
+val WaqtiDarkCardBg = Color(0xFF101827)
+val WaqtiDarkSecondaryCard = Color(0xFF121C2D)
+val WaqtiPrimaryBlue = Color(0xFF08A8F5)
+val WaqtiSecondaryBlue = Color(0xFF087AC1)
+val WaqtiAccentTeal = Color(0xFF06B6D4)
+val WaqtiAmberWarning = Color(0xFFD99A16)
+val WaqtiPrimaryTextDark = Color(0xFFF8FAFC)
+val WaqtiSecondaryTextDark = Color(0xFF94A3B8)
+val WaqtiDarkBorder = Color(0xFF1E293B)
+
 // Modern UI Accent & Dark Glass Tokens
-val WaqtiCyan = Color(0xFF00A3FF)
+val WaqtiCyan = Color(0xFF08A8F5)
 val WaqtiCyanLight = Color(0xFF38BDF8)
-val WaqtiDarkCard = Color(0xFF0F172A)
+val WaqtiDarkCard = Color(0xFF101827)
 val WaqtiDarkCardBorder = Color(0xFF1E293B)
-val WaqtiAmberGlow = Color(0xFFF59E0B)
+val WaqtiAmberGlow = Color(0xFFD99A16)
 

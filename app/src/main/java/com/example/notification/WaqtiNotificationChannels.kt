@@ -7,17 +7,34 @@ import android.media.AudioAttributes
 import android.media.RingtoneManager
 import android.os.Build
 
+/**
+ * Versioned notification channels for WAQTI Audio 2.0.
+ * Ensures consistent audio attributes, importance, and vibration across modern Android versions.
+ */
 object WaqtiNotificationChannels {
 
-    const val CHANNEL_PRAYERS = "channel_prayers"
-    const val CHANNEL_QURAN = "channel_quran"
-    const val CHANNEL_AZKAR = "channel_azkar"
-    const val CHANNEL_EXERCISE = "channel_exercise"
-    const val CHANNEL_TASKS = "channel_tasks"
-    const val CHANNEL_CALENDAR = "channel_calendar"
-    const val CHANNEL_FOCUS = "channel_focus"
-    const val CHANNEL_AI = "channel_ai"
-    const val CHANNEL_SYSTEM = "channel_system"
+    // V2 Versioned Channel IDs
+    const val CHANNEL_PRAYERS_V2 = "channel_prayers_v2"
+    const val CHANNEL_TASKS_V2 = "channel_tasks_v2"
+    const val CHANNEL_REMINDERS_V2 = "channel_reminders_v2"
+    const val CHANNEL_HABITS_V2 = "channel_habits_v2"
+    const val CHANNEL_FOCUS_V2 = "channel_focus_v2"
+    const val CHANNEL_QURAN_V2 = "channel_quran_v2"
+    const val CHANNEL_AZKAR_V2 = "channel_azkar_v2"
+    const val CHANNEL_EXERCISE_V2 = "channel_exercise_v2"
+    const val CHANNEL_AI_V2 = "channel_ai_v2"
+    const val CHANNEL_SYSTEM_V2 = "channel_system_v2"
+
+    // Backward-compatibility aliases
+    const val CHANNEL_PRAYERS = CHANNEL_PRAYERS_V2
+    const val CHANNEL_QURAN = CHANNEL_QURAN_V2
+    const val CHANNEL_AZKAR = CHANNEL_AZKAR_V2
+    const val CHANNEL_EXERCISE = CHANNEL_EXERCISE_V2
+    const val CHANNEL_TASKS = CHANNEL_TASKS_V2
+    const val CHANNEL_CALENDAR = "channel_calendar_v2"
+    const val CHANNEL_FOCUS = CHANNEL_FOCUS_V2
+    const val CHANNEL_AI = CHANNEL_AI_V2
+    const val CHANNEL_SYSTEM = CHANNEL_SYSTEM_V2
 
     fun createChannels(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -32,77 +49,96 @@ object WaqtiNotificationChannels {
 
             val channels = listOf(
                 NotificationChannel(
-                    CHANNEL_PRAYERS,
-                    "مواقيت الصلاة (Prayers)",
+                    CHANNEL_PRAYERS_V2,
+                    "مواقيت الصلاة والأذان (Prayers & Adhan)",
                     NotificationManager.IMPORTANCE_HIGH
                 ).apply {
-                    description = "تنبيهات دخول أوقات الصلوات الخمس والتذكير المسبق"
+                    description = "تنبيهات دخول أوقات الصلوات الخمس والتذكير المسبق والأذان"
                     enableVibration(true)
-                    vibrationPattern = longArrayOf(0, 500, 250, 500)
+                    vibrationPattern = longArrayOf(0, 400, 200, 400)
                     setSound(defaultSoundUri, audioAttributes)
                 },
                 NotificationChannel(
-                    CHANNEL_QURAN,
-                    "ورد وآيات القرآن (Quran)",
-                    NotificationManager.IMPORTANCE_DEFAULT
-                ).apply {
-                    description = "تذكير بالورد اليومي وآية اليوم المختارة من المصحف"
-                    enableVibration(true)
-                },
-                NotificationChannel(
-                    CHANNEL_AZKAR,
-                    "أذكار اليوم (Daily Azkar & Dhikr)",
-                    NotificationManager.IMPORTANCE_DEFAULT
-                ).apply {
-                    description = "أذكار الصباح والمساء وتذكيرات الذكر المتفرقة"
-                    enableVibration(true)
-                },
-                NotificationChannel(
-                    CHANNEL_EXERCISE,
-                    "الرياضة واللياقة (Exercise)",
-                    NotificationManager.IMPORTANCE_DEFAULT
-                ).apply {
-                    description = "مواعيد التمارين والنشاط البدني وإعادة الجدولة الذكية"
-                    enableVibration(true)
-                },
-                NotificationChannel(
-                    CHANNEL_TASKS,
-                    "المهام اليومية (Tasks)",
+                    CHANNEL_TASKS_V2,
+                    "تذكيرات المهام (Task Reminders)",
                     NotificationManager.IMPORTANCE_HIGH
                 ).apply {
                     description = "تذكيرات بدء المهام والمواعيد النهائية الهامة"
                     enableVibration(true)
+                    vibrationPattern = longArrayOf(0, 250, 150, 250)
+                    setSound(defaultSoundUri, audioAttributes)
                 },
                 NotificationChannel(
-                    CHANNEL_CALENDAR,
-                    "أحداث التقويم (Calendar)",
+                    CHANNEL_REMINDERS_V2,
+                    "التذكيرات العامة (General Reminders)",
                     NotificationManager.IMPORTANCE_HIGH
                 ).apply {
-                    description = "تنبيهات المواعيد والاجتماعات المجدولة"
+                    description = "تذكيرات المواعيد والجداول الزمنية العامة"
                     enableVibration(true)
+                    vibrationPattern = longArrayOf(0, 250, 150, 250)
+                    setSound(defaultSoundUri, audioAttributes)
                 },
                 NotificationChannel(
-                    CHANNEL_FOCUS,
-                    "جلسات التركيز (Focus)",
+                    CHANNEL_HABITS_V2,
+                    "العادات والروتين (Habits & Routines)",
+                    NotificationManager.IMPORTANCE_DEFAULT
+                ).apply {
+                    description = "تذكيرات بناء العادات والروتين اليومي"
+                    enableVibration(true)
+                    setSound(defaultSoundUri, audioAttributes)
+                },
+                NotificationChannel(
+                    CHANNEL_FOCUS_V2,
+                    "جلسات التركيز (Focus Mode)",
                     NotificationManager.IMPORTANCE_HIGH
                 ).apply {
-                    description = "إشعارات انتهاء جلسات البومودورو والعمل العميق"
+                    description = "إشعارات فترات التركيز وبدء الاستراحات"
                     enableVibration(true)
+                    vibrationPattern = longArrayOf(0, 300, 150, 300)
+                    setSound(defaultSoundUri, audioAttributes)
                 },
                 NotificationChannel(
-                    CHANNEL_AI,
-                    "اقتراحات وقتي الذكية (AI Suggestions)",
-                    NotificationManager.IMPORTANCE_LOW
+                    CHANNEL_QURAN_V2,
+                    "ورد وآيات القرآن (Quran)",
+                    NotificationManager.IMPORTANCE_DEFAULT
                 ).apply {
-                    description = "تحليلات الإنتاجية وتوصيات إعادة تنظيم اليوم"
+                    description = "تذكير بالورد القرآني اليومي وآيات التدبر"
+                    enableVibration(true)
+                    setSound(defaultSoundUri, audioAttributes)
+                },
+                NotificationChannel(
+                    CHANNEL_AZKAR_V2,
+                    "أذكار اليوم (Daily Azkar)",
+                    NotificationManager.IMPORTANCE_DEFAULT
+                ).apply {
+                    description = "أذكار الصباح والمساء وتذكيرات الذكر المتفرقة"
+                    enableVibration(true)
+                    setSound(defaultSoundUri, audioAttributes)
+                },
+                NotificationChannel(
+                    CHANNEL_EXERCISE_V2,
+                    "الرياضة واللياقة (Exercise)",
+                    NotificationManager.IMPORTANCE_DEFAULT
+                ).apply {
+                    description = "مواعيد التمارين والنشاط البدني"
+                    enableVibration(true)
+                    setSound(defaultSoundUri, audioAttributes)
+                },
+                NotificationChannel(
+                    CHANNEL_AI_V2,
+                    "اقتراحات مساعد وقتي (AI Assistant)",
+                    NotificationManager.IMPORTANCE_DEFAULT
+                ).apply {
+                    description = "توصيات ذكية لإعادة تنظيم اليوم وتحسين الإنتاجية"
                     enableVibration(false)
+                    setSound(defaultSoundUri, audioAttributes)
                 },
                 NotificationChannel(
-                    CHANNEL_SYSTEM,
+                    CHANNEL_SYSTEM_V2,
                     "تنبيهات النظام (System)",
                     NotificationManager.IMPORTANCE_LOW
                 ).apply {
-                    description = "تنبيهات الحساب والنسخ الاحتياطي"
+                    description = "تنبيهات النسخ الاحتياطي وإدارة النظام"
                     enableVibration(false)
                 }
             )

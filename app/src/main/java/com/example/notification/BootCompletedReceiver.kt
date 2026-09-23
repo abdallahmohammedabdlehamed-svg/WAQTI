@@ -17,6 +17,7 @@ class BootCompletedReceiver : BroadcastReceiver() {
         if (action == Intent.ACTION_BOOT_COMPLETED ||
             action == Intent.ACTION_TIMEZONE_CHANGED ||
             action == Intent.ACTION_TIME_CHANGED ||
+            action == Intent.ACTION_DATE_CHANGED ||
             action == Intent.ACTION_MY_PACKAGE_REPLACED
         ) {
             WaqtiNotificationChannels.createChannels(context)
@@ -24,6 +25,7 @@ class BootCompletedReceiver : BroadcastReceiver() {
             // Trigger Smart Notification Engine to recalculate and reschedule
             CoroutineScope(Dispatchers.IO).launch {
                 try {
+                    Log.d("WAQTI_PRAYER_DEBUG", "System broadcast received ($action). Recalculating and scheduling prayer notifications.")
                     SmartNotificationEngine.recalculateAndScheduleAll(context)
                 } catch (e: Exception) {
                     Log.e("BootCompletedReceiver", "Failed to reschedule on boot: ${e.message}")

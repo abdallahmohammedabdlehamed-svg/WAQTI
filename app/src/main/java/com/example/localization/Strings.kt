@@ -86,4 +86,39 @@ object Strings {
     fun language(lang: AppLanguage) = if (lang == AppLanguage.ARABIC) "اللغة" else "Language"
     fun theme(lang: AppLanguage) = if (lang == AppLanguage.ARABIC) "المظهر" else "Appearance"
     fun quietHours(lang: AppLanguage) = if (lang == AppLanguage.ARABIC) "ساعات الهدوء" else "Quiet Hours"
+
+    // Audio & Adhan 2.1
+    fun soundAndAdhan(lang: AppLanguage) = if (lang == AppLanguage.ARABIC) "الصوت والأذان" else "Audio & Adhan"
+    fun adhan(lang: AppLanguage) = if (lang == AppLanguage.ARABIC) "الأذان" else "Adhan"
+    fun autoPlayAdhan(lang: AppLanguage) = if (lang == AppLanguage.ARABIC) "تشغيل الأذان تلقائيًا" else "Auto Play Adhan"
+    fun adhanVolume(lang: AppLanguage) = if (lang == AppLanguage.ARABIC) "مستوى صوت الأذان" else "Adhan Volume"
+    fun allowAdhanInQuiet(lang: AppLanguage) = if (lang == AppLanguage.ARABIC) "السماح بالأذان أثناء الهدوء" else "Allow Adhan during Quiet Hours"
+    fun testAdhan(lang: AppLanguage) = if (lang == AppLanguage.ARABIC) "🔊 تجربة الأذان" else "🔊 Test Adhan"
+    fun stopAdhan(lang: AppLanguage) = if (lang == AppLanguage.ARABIC) "إيقاف الأذان" else "Stop Adhan"
+    fun prayerAdhanFajr(lang: AppLanguage) = if (lang == AppLanguage.ARABIC) "صلاة الفجر" else "Fajr Prayer"
+    fun prayerAdhanDhuhr(lang: AppLanguage) = if (lang == AppLanguage.ARABIC) "صلاة الظهر" else "Dhuhr Prayer"
+    fun prayerAdhanAsr(lang: AppLanguage) = if (lang == AppLanguage.ARABIC) "صلاة العصر" else "Asr Prayer"
+    fun prayerAdhanMaghrib(lang: AppLanguage) = if (lang == AppLanguage.ARABIC) "صلاة المغرب" else "Maghrib Prayer"
+    fun prayerAdhanIsha(lang: AppLanguage) = if (lang == AppLanguage.ARABIC) "صلاة العشاء" else "Isha Prayer"
+    fun prayerAdhanNotificationTitle(lang: AppLanguage, prayer: String) =
+        if (lang == AppLanguage.ARABIC) "حان الآن وقت صلاة $prayer" else "$prayer prayer time"
+    fun prayerAdhanNotificationBody(lang: AppLanguage) =
+        if (lang == AppLanguage.ARABIC) "حي على الصلاة • حي على الفلاح" else "Come to prayer • Come to success"
+
+    // Custom Adhan Audio
+    fun customAdhanAudio(lang: AppLanguage) = if (lang == AppLanguage.ARABIC) "صوت الأذان المخصص" else "Custom Adhan Audio"
+    fun adhanAudioSectionTitle(lang: AppLanguage) = if (lang == AppLanguage.ARABIC) "صوت الأذان" else "Adhan Audio"
+    fun defaultAdhan(lang: AppLanguage) = if (lang == AppLanguage.ARABIC) "الأذان الافتراضي" else "Default Adhan"
+    fun defaultAdhanName(lang: AppLanguage) = if (lang == AppLanguage.ARABIC) "أذان WAQTI" else "WAQTI Adhan"
+    fun customAdhan(lang: AppLanguage) = if (lang == AppLanguage.ARABIC) "الأذان المخصص" else "Custom Adhan"
+    fun chooseAdhanAudio(lang: AppLanguage) = if (lang == AppLanguage.ARABIC) "اختيار ملف الأذان" else "Choose Adhan Audio"
+    fun changeAdhanAudio(lang: AppLanguage) = if (lang == AppLanguage.ARABIC) "تغيير ملف الأذان" else "Change Adhan Audio"
+    fun removeCustomAdhan(lang: AppLanguage) = if (lang == AppLanguage.ARABIC) "إزالة الأذان المخصص" else "Remove Custom Adhan"
+    fun removeCustomAdhanConfirm(lang: AppLanguage) = if (lang == AppLanguage.ARABIC) "هل تريد إزالة صوت الأذان المخصص؟" else "Remove custom Adhan audio?"
+    fun adhanAudioSelected(lang: AppLanguage) = if (lang == AppLanguage.ARABIC) "تم اختيار ملف الأذان" else "Adhan audio selected"
+    fun customAdhanRemoved(lang: AppLanguage) = if (lang == AppLanguage.ARABIC) "تم حذف صوت الأذان المخصص" else "Custom Adhan removed"
+    fun unsupportedAudioFile(lang: AppLanguage) = if (lang == AppLanguage.ARABIC) "الملف الصوتي غير مدعوم" else "Unsupported audio file"
+    fun unableToPlayAudio(lang: AppLanguage) = if (lang == AppLanguage.ARABIC) "تعذر تشغيل الملف" else "Unable to play audio"
+    fun confirm(lang: AppLanguage) = if (lang == AppLanguage.ARABIC) "تأكيد" else "Confirm"
+    fun cancel(lang: AppLanguage) = if (lang == AppLanguage.ARABIC) "إلغاء" else "Cancel"
 }

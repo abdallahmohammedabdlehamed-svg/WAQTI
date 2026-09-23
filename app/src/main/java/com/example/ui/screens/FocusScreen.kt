@@ -449,7 +449,10 @@ fun FocusScreen(
                             Spacer(modifier = Modifier.width(8.dp))
                             Slider(
                                 value = ambientVolume,
-                                onValueChange = { ambientVolume = it },
+                                onValueChange = {
+                                    ambientVolume = it
+                                    viewModel.setAmbientVolume(it)
+                                },
                                 colors = SliderDefaults.colors(
                                     thumbColor = WaqtiPrimary,
                                     activeTrackColor = WaqtiPrimary

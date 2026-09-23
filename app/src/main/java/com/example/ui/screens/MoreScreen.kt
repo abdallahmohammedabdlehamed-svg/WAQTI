@@ -1,6 +1,7 @@
 package com.example.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,6 +24,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.AutoAwesome
@@ -61,7 +63,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.AnnotatedString
+import com.example.domain.ai.AiActionPayload
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -92,21 +98,21 @@ fun MoreScreen(
     var chatInput by remember { mutableStateOf("") }
 
     val quickPrompts = if (language == AppLanguage.ARABIC) listOf(
-        "أعد تنظيم يومي 🔄",
-        "لخص مهامي اليوم 📋",
-        "اقترح ورد قرآني 📖",
-        "جدولة مهمة عاجلة ⚡",
         "ماذا أفعل الآن؟ 🤔",
-        "خفف جدول اليوم 🌿",
-        "أسبوعك مع وقتي 📊"
+        "أعد تنظيم يومي 🔄",
+        "اتأخرت وخفف الجدول 🌿",
+        "قسم لي مشروع جديد 🧩",
+        "أضف مهمة: مراجعة الكود 💻",
+        "صياغة إيميل رسمي ✉️",
+        "نصيحة لتنظيم وقت الدراسة 📚"
     ) else listOf(
-        "Reschedule my day 🔄",
-        "Summarize today's tasks 📋",
-        "Suggest Quran routine 📖",
-        "Schedule urgent task ⚡",
         "What should I do now? 🤔",
-        "Lighten my schedule 🌿",
-        "Weekly review 📊"
+        "Reschedule my day 🔄",
+        "I'm behind, lighten schedule 🌿",
+        "Breakdown a project 🧩",
+        "Add task: Code review 💻",
+        "Draft a formal email ✉️",
+        "Study time management 📚"
     )
 
     LazyColumn(
@@ -249,7 +255,7 @@ fun MoreScreen(
         }
 
         if (activeSubSection == 0) {
-            // AI ASSISTANT CHAT
+            // WAQTI AI 2.0 ASSISTANT CHAT
             item {
                 Card(
                     shape = RoundedCornerShape(18.dp),
@@ -258,6 +264,7 @@ fun MoreScreen(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
+                        val clipboard = LocalClipboardManager.current
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -266,22 +273,22 @@ fun MoreScreen(
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Box(
                                     modifier = Modifier
-                                        .size(34.dp)
+                                        .size(38.dp)
                                         .clip(CircleShape)
-                                        .background(WaqtiPrimary.copy(alpha = 0.12f)),
+                                        .background(WaqtiPrimary.copy(alpha = 0.14f)),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = WaqtiPrimary, modifier = Modifier.size(20.dp))
+                                    Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = WaqtiPrimary, modifier = Modifier.size(22.dp))
                                 }
                                 Spacer(modifier = Modifier.width(10.dp))
                                 Column {
                                     Text(
-                                        text = if (language == AppLanguage.ARABIC) "مساعد وقتي الذكي (ChatGPT)" else "Waqti AI (ChatGPT)",
+                                        text = if (language == AppLanguage.ARABIC) "مساعد وقتي الذكي 2.0" else "WAQTI AI 2.0 Assistant",
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.Bold
                                     )
                                     Text(
-                                        text = if (language == AppLanguage.ARABIC) "مجاني وغير محدود • ردود فورية واحترافية" else "Free & Unlimited • Smart Responses",
+                                        text = if (language == AppLanguage.ARABIC) "ذكاء اصطناعي فائق • إدراك لجدولك وصلواتك" else "Advanced AI • Live Schedule & Prayer Aware",
                                         style = MaterialTheme.typography.labelSmall,
                                         color = WaqtiSecondaryGreen,
                                         fontWeight = FontWeight.Medium
@@ -309,9 +316,10 @@ fun MoreScreen(
                                 Box(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(12.dp))
-                                        .background(WaqtiPrimary.copy(alpha = 0.1f))
+                                        .background(WaqtiPrimary.copy(alpha = 0.08f))
+                                        .border(1.dp, WaqtiPrimary.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
                                         .clickable { viewModel.sendAiMessage(prompt) }
-                                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                                        .padding(horizontal = 12.dp, vertical = 7.dp)
                                 ) {
                                     Text(
                                         text = prompt,
@@ -326,20 +334,21 @@ fun MoreScreen(
                         Spacer(modifier = Modifier.height(14.dp))
 
                         // Chat Messages
-                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             aiMessages.forEach { msg ->
                                 val isUser = msg.sender == "USER"
                                 val text = if (language == AppLanguage.ARABIC) msg.textAr else msg.textEn
+                                val action = msg.actionPayload
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start
                                 ) {
                                     Box(
                                         modifier = Modifier
-                                            .clip(RoundedCornerShape(14.dp))
-                                            .background(if (isUser) WaqtiPrimary else MaterialTheme.colorScheme.surfaceVariant)
-                                            .padding(12.dp)
-                                            .fillMaxWidth(0.85f)
+                                            .clip(RoundedCornerShape(16.dp))
+                                            .background(if (isUser) WaqtiPrimary else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.85f))
+                                            .padding(14.dp)
+                                            .fillMaxWidth(0.88f)
                                     ) {
                                         Column {
                                             Text(
@@ -347,7 +356,141 @@ fun MoreScreen(
                                                 style = MaterialTheme.typography.bodyMedium,
                                                 color = if (isUser) Color.White else MaterialTheme.colorScheme.onSurface
                                             )
-                                            if (msg.suggestionAction == "APPLY_RESCHEDULE") {
+
+                                            // Copy action for assistant messages
+                                            if (!isUser) {
+                                                Spacer(modifier = Modifier.height(6.dp))
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.End
+                                                ) {
+                                                    Text(
+                                                        text = if (language == AppLanguage.ARABIC) "نسخ النص" else "Copy text",
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        color = MaterialTheme.colorScheme.primary,
+                                                        modifier = Modifier.clickable {
+                                                            clipboard.setText(AnnotatedString(text))
+                                                        }
+                                                    )
+                                                }
+                                            }
+
+                                            // Action card if present
+                                            if (action != null) {
+                                                Spacer(modifier = Modifier.height(10.dp))
+                                                Card(
+                                                    shape = RoundedCornerShape(10.dp),
+                                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                                                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                                                    modifier = Modifier.fillMaxWidth()
+                                                ) {
+                                                    Column(modifier = Modifier.padding(10.dp)) {
+                                                        if (action.isExecuted) {
+                                                            Row(
+                                                                verticalAlignment = Alignment.CenterVertically,
+                                                                modifier = Modifier.fillMaxWidth()
+                                                            ) {
+                                                                Icon(Icons.Default.Check, contentDescription = null, tint = WaqtiSuccess, modifier = Modifier.size(16.dp))
+                                                                Spacer(modifier = Modifier.width(6.dp))
+                                                                Text(
+                                                                    text = if (language == AppLanguage.ARABIC) "تم تنفيذ الإجراء بنجاح في جدولك ✓" else "Action applied successfully ✓",
+                                                                    style = MaterialTheme.typography.labelSmall,
+                                                                    color = WaqtiSuccess,
+                                                                    fontWeight = FontWeight.Bold
+                                                                )
+                                                            }
+                                                        } else {
+                                                            when (action.actionType) {
+                                                                "CREATE_TASK" -> {
+                                                                    Text(
+                                                                        text = action.title ?: (if (language == AppLanguage.ARABIC) "مهمة مقترحة" else "Suggested Task"),
+                                                                        style = MaterialTheme.typography.bodySmall,
+                                                                        fontWeight = FontWeight.Bold
+                                                                    )
+                                                                    Spacer(modifier = Modifier.height(6.dp))
+                                                                    Button(
+                                                                        onClick = { viewModel.executeAiAction(action, msg.id) },
+                                                                        colors = ButtonDefaults.buttonColors(containerColor = WaqtiPrimary),
+                                                                        shape = RoundedCornerShape(8.dp),
+                                                                        modifier = Modifier.height(34.dp)
+                                                                    ) {
+                                                                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(14.dp))
+                                                                        Spacer(modifier = Modifier.width(4.dp))
+                                                                        Text(if (language == AppLanguage.ARABIC) "تأكيد وإضافة المهمة" else "Add to Schedule", fontSize = 12.sp)
+                                                                    }
+                                                                }
+                                                                "APPLY_RESCHEDULE" -> {
+                                                                    Text(
+                                                                        text = if (language == AppLanguage.ARABIC) "إعادة تنظيم وترتيب المهام مع مراعاة الصلاة" else "Reschedule tasks safeguarding prayers",
+                                                                        style = MaterialTheme.typography.bodySmall
+                                                                    )
+                                                                    Spacer(modifier = Modifier.height(6.dp))
+                                                                    Button(
+                                                                        onClick = { viewModel.executeAiAction(action, msg.id) },
+                                                                        colors = ButtonDefaults.buttonColors(containerColor = WaqtiSuccess),
+                                                                        shape = RoundedCornerShape(8.dp),
+                                                                        modifier = Modifier.height(34.dp)
+                                                                    ) {
+                                                                        Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(14.dp))
+                                                                        Spacer(modifier = Modifier.width(4.dp))
+                                                                        Text(Strings.apply(language), fontSize = 12.sp)
+                                                                    }
+                                                                }
+                                                                "IM_BEHIND" -> {
+                                                                    Text(
+                                                                        text = if (language == AppLanguage.ARABIC) "تخفيف اليوم وتأجيل المهام غير العاجلة" else "Lighten schedule & postpone non-essentials",
+                                                                        style = MaterialTheme.typography.bodySmall
+                                                                    )
+                                                                    Spacer(modifier = Modifier.height(6.dp))
+                                                                    Button(
+                                                                        onClick = { viewModel.executeAiAction(action, msg.id) },
+                                                                        colors = ButtonDefaults.buttonColors(containerColor = WaqtiWarning),
+                                                                        shape = RoundedCornerShape(8.dp),
+                                                                        modifier = Modifier.height(34.dp)
+                                                                    ) {
+                                                                        Text(if (language == AppLanguage.ARABIC) "تطبيق التخفيف الهادئ" else "Apply Relaxed Plan", fontSize = 12.sp)
+                                                                    }
+                                                                }
+                                                                "START_FOCUS" -> {
+                                                                    Button(
+                                                                        onClick = { viewModel.executeAiAction(action, msg.id) },
+                                                                        colors = ButtonDefaults.buttonColors(containerColor = WaqtiPrimary),
+                                                                        shape = RoundedCornerShape(8.dp),
+                                                                        modifier = Modifier.height(34.dp)
+                                                                    ) {
+                                                                        Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(14.dp))
+                                                                        Spacer(modifier = Modifier.width(4.dp))
+                                                                        Text(if (language == AppLanguage.ARABIC) "بدء جلسة التركيز الآن ⏱️" else "Start Focus Now ⏱️", fontSize = 12.sp)
+                                                                    }
+                                                                }
+                                                                "BREAKDOWN_TASK" -> {
+                                                                    val steps = action.breakdownSteps ?: emptyList()
+                                                                    if (steps.isNotEmpty()) {
+                                                                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                                                            steps.forEachIndexed { idx, stp ->
+                                                                                Text(
+                                                                                    text = "${idx + 1}. $stp",
+                                                                                    style = MaterialTheme.typography.bodySmall,
+                                                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                                                )
+                                                                            }
+                                                                        }
+                                                                        Spacer(modifier = Modifier.height(6.dp))
+                                                                    }
+                                                                    Button(
+                                                                        onClick = { viewModel.executeAiAction(action, msg.id) },
+                                                                        colors = ButtonDefaults.buttonColors(containerColor = WaqtiPrimary),
+                                                                        shape = RoundedCornerShape(8.dp),
+                                                                        modifier = Modifier.height(34.dp)
+                                                                    ) {
+                                                                        Text(if (language == AppLanguage.ARABIC) "حفظ كمهام في جدولك" else "Save as Tasks", fontSize = 12.sp)
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            } else if (msg.suggestionAction == "APPLY_RESCHEDULE") {
                                                 Spacer(modifier = Modifier.height(8.dp))
                                                 Button(
                                                     onClick = { viewModel.triggerSmartReschedule() },
@@ -389,7 +532,7 @@ fun MoreScreen(
                                     )
                                     Spacer(modifier = Modifier.width(10.dp))
                                     Text(
-                                        text = if (language == AppLanguage.ARABIC) "جاري استدعاء ChatGPT وصياغة الرد الذكي..." else "ChatGPT is generating a thoughtful response...",
+                                        text = if (language == AppLanguage.ARABIC) "مساعد وقتي 2.0 يفكر ويصيغ الرد الذكي..." else "WAQTI AI 2.0 is generating a thoughtful response...",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = WaqtiPrimary,
                                         fontWeight = FontWeight.Medium
@@ -410,11 +553,14 @@ fun MoreScreen(
                                 onValueChange = { chatInput = it },
                                 placeholder = {
                                     Text(
-                                        if (language == AppLanguage.ARABIC) "اسأل ChatGPT لتنظيم وقتك أو حل مشكلة..." else "Ask ChatGPT anything about your day..."
+                                        if (language == AppLanguage.ARABIC) "اسأل عن أي شيء، برمج، ادرس، أو نظم يومك..." else "Ask anything: code, study, or plan your day..."
                                     )
                                 },
+                                shape = RoundedCornerShape(20.dp),
                                 singleLine = true,
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .testTag("ai_chat_input")
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             IconButton(
@@ -424,7 +570,8 @@ fun MoreScreen(
                                         chatInput = ""
                                     }
                                 },
-                                enabled = !isAiThinking
+                                enabled = !isAiThinking,
+                                modifier = Modifier.testTag("send_ai_message_button")
                             ) {
                                 Icon(Icons.Default.Send, contentDescription = "Send", tint = if (isAiThinking) Color.Gray else WaqtiPrimary)
                             }

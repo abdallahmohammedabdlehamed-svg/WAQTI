@@ -1,6 +1,12 @@
 package com.example.ui.viewmodel
 
 import android.app.Application
+import android.content.Context
+import android.content.Intent
+import android.media.MediaMetadataRetriever
+import android.net.Uri
+import android.provider.OpenableColumns
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.local.FocusSessionEntity
@@ -12,9 +18,12 @@ import com.example.data.prayer.PrayerCalculator
 import com.example.data.prayer.PrayerTime
 import com.example.data.repository.WaqtiRepository
 import com.example.data.spiritual.QuranAzkarData
+import com.example.domain.ai.AiActionPayload
 import com.example.domain.ai.AiChatMessage
 import com.example.domain.ai.RescheduleResult
+import com.example.domain.ai.WaqtiAiContext
 import com.example.domain.ai.WaqtiAiEngine
+import com.example.domain.ai.WaqtiAiService
 import com.example.localization.AppLanguage
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Dispatchers
@@ -33,6 +42,11 @@ import kotlinx.coroutines.launch
 class WaqtiViewModel(application: Application) : AndroidViewModel(application) {
     private val database = WaqtiDatabase.getInstance(application)
     private val repository = WaqtiRepository(database.waqtiDao())
+
+    // WAQTI Audio 2.0 Engine
+    val audioManager = com.example.audio.WaqtiAudioManager.getInstance(application)
+    val audioPreferences = com.example.audio.WaqtiAudioPreferences.getInstance(application)
+    val audioSettings: StateFlow<com.example.audio.WaqtiAudioPreferences.AudioSettingsState> = audioPreferences.settingsFlow
 
     // User & Authentication State
     val currentUser: StateFlow<com.example.data.local.UserEntity?> = repository.currentUser
@@ -154,8 +168,8 @@ class WaqtiViewModel(application: Application) : AndroidViewModel(application) {
         listOf(
             AiChatMessage(
                 sender = "WAQTI",
-                textAr = "مرحبًا بك في وقتي 👋! أنا مساعدك الشخصي المدعوم بـ ChatGPT لتنظيم وقتك بذكاء وحماية أوقات صلواتك وراحتك. كيف أساعدك اليوم؟",
-                textEn = "Welcome to WAQTI 👋! I'm your ChatGPT-powered productivity companion, here to smartly plan your day and protect your prayer and rest times. How can I help?"
+                textAr = "مرحبًا بك في وقتي 👋! أنا مساعدك الذكي المتطور (WAQTI AI 2.0). يمكنك سؤالي في أي مجال (برمجة، دراسة، كتابة، تقنية) أو طلبي لتنظيم يومك وحماية أوقات صلواتك وراحتك بذكاء. كيف أساعدك اليوم؟",
+                textEn = "Welcome to WAQTI 👋! I'm your advanced AI assistant (WAQTI AI 2.0). Ask me anything (coding, studying, writing, tech) or let me smartly organize your day and protect your prayer and rest times. How can I help?"
             )
         )
     )
@@ -352,6 +366,7 @@ class WaqtiViewModel(application: Application) : AndroidViewModel(application) {
             val updated = if (task.status == "COMPLETED") {
                 task.copy(status = "PLANNED")
             } else {
+                audioManager.playTaskCompleteSound()
                 task.copy(status = "COMPLETED")
             }
             repository.updateTask(updated)
@@ -445,6 +460,18 @@ class WaqtiViewModel(application: Application) : AndroidViewModel(application) {
     fun triggerTaskBreakdown(task: TaskEntity) {
         _breakdownTask.value = task
         _breakdownSteps.value = WaqtiAiEngine.breakdownTask(task.title)
+
+        // Enhance dynamically with Gemini
+        viewModelScope.launch {
+            try {
+                val dynamicSteps = WaqtiAiService.breakdownTaskDynamic(task.title, _language.value)
+                if (dynamicSteps.isNotEmpty() && _breakdownTask.value?.id == task.id) {
+                    _breakdownSteps.value = dynamicSteps
+                }
+            } catch (e: Exception) {
+                // Keep local deterministic steps
+            }
+        }
     }
 
     fun dismissBreakdown() {
@@ -474,12 +501,17 @@ class WaqtiViewModel(application: Application) : AndroidViewModel(application) {
             else -> 90 * 60
         }
         _isFocusRunning.value = true
+        audioManager.playFocusStartSound()
 
         timerJob?.cancel()
         timerJob = viewModelScope.launch {
             while (_isFocusRunning.value && _focusRemainingSeconds.value > 0) {
                 delay(1000)
                 _focusRemainingSeconds.value -= 1
+                if (_focusRemainingSeconds.value == 300) {
+                    // 5-minute warning sound
+                    audioManager.playFocusWarningSound()
+                }
             }
             if (_focusRemainingSeconds.value <= 0) {
                 finishFocusSession()
@@ -497,6 +529,9 @@ class WaqtiViewModel(application: Application) : AndroidViewModel(application) {
                 while (_isFocusRunning.value && _focusRemainingSeconds.value > 0) {
                     delay(1000)
                     _focusRemainingSeconds.value -= 1
+                    if (_focusRemainingSeconds.value == 300) {
+                        audioManager.playFocusWarningSound()
+                    }
                 }
                 if (_focusRemainingSeconds.value <= 0) {
                     finishFocusSession()
@@ -508,6 +543,7 @@ class WaqtiViewModel(application: Application) : AndroidViewModel(application) {
     fun finishFocusSession() {
         _isFocusRunning.value = false
         timerJob?.cancel()
+        audioManager.playFocusCompleteSound()
         val totalSec = when (_focusMode.value) {
             "POMODORO" -> 25 * 60
             "DEEP_WORK" -> 50 * 60
@@ -528,9 +564,14 @@ class WaqtiViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setAmbientSound(sound: String?) {
         _ambientSound.value = sound
+        audioManager.setFocusAmbientSound(sound)
     }
 
-    // AI Chat Interaction (Powered by free ChatGPT)
+    fun setAmbientVolume(volume: Float) {
+        audioManager.setFocusAmbientVolume(volume)
+    }
+
+    // AI Chat Interaction (WAQTI AI 2.0 with Gemini & Context)
     fun sendAiMessage(query: String) {
         if (query.isBlank()) return
         val userMsg = AiChatMessage(
@@ -543,7 +584,21 @@ class WaqtiViewModel(application: Application) : AndroidViewModel(application) {
 
         viewModelScope.launch {
             try {
-                val reply = WaqtiAiEngine.queryChatGpt(query, _language.value)
+                val liveContext = WaqtiAiContext.build(
+                    tasks = tasks.value,
+                    routines = routines.value,
+                    nextPrayer = try { getNextPrayer() } catch (e: Exception) { null },
+                    isFocusRunning = _isFocusRunning.value,
+                    activeFocusTask = _activeFocusTask.value,
+                    language = _language.value
+                )
+
+                val reply = WaqtiAiEngine.queryAiAssistant(
+                    query = query,
+                    history = _aiMessages.value,
+                    context = liveContext,
+                    lang = _language.value
+                )
                 _aiMessages.value = _aiMessages.value + reply
             } catch (e: Exception) {
                 val fallback = WaqtiAiEngine.getAssistantResponse(query, _language.value)
@@ -554,12 +609,69 @@ class WaqtiViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun executeAiAction(action: AiActionPayload, messageId: String) {
+        viewModelScope.launch {
+            when (action.actionType) {
+                "CREATE_TASK" -> {
+                    val uid = currentUser.value?.id ?: "user_default_01"
+                    val newTask = TaskEntity(
+                        userId = uid,
+                        title = action.title ?: "مهمة جديدة",
+                        description = "تمت إضافتها عبر مساعد وقتي الذكي",
+                        status = "PLANNED",
+                        priority = action.priority ?: "MEDIUM",
+                        category = action.category ?: "WORK",
+                        durationMinutes = action.durationMinutes ?: 45,
+                        startTime = action.startTime ?: "16:00",
+                        endTime = "16:45"
+                    )
+                    repository.insertTask(newTask)
+                }
+                "APPLY_RESCHEDULE" -> {
+                    triggerSmartReschedule()
+                }
+                "IM_BEHIND" -> {
+                    triggerImBehind()
+                }
+                "START_FOCUS" -> {
+                    val taskName = action.title ?: (_activeFocusTask.value ?: "جلسة تركيز")
+                    startFocusSession(taskName)
+                    _currentTab.value = 3 // Focus tab
+                }
+                "BREAKDOWN_TASK" -> {
+                    val uid = currentUser.value?.id ?: "user_default_01"
+                    val steps = action.breakdownSteps ?: emptyList()
+                    val newTask = TaskEntity(
+                        userId = uid,
+                        title = action.title ?: "مشروع جديد",
+                        description = "خطة عمل مجزأة بالذكاء الاصطناعي",
+                        status = "PLANNED",
+                        priority = "HIGH",
+                        category = "WORK",
+                        durationMinutes = 60,
+                        subtasksRaw = steps.joinToString("\n")
+                    )
+                    repository.insertTask(newTask)
+                }
+            }
+
+            // Mark action as executed in the conversation
+            _aiMessages.value = _aiMessages.value.map { msg ->
+                if (msg.id == messageId && msg.actionPayload != null) {
+                    msg.copy(actionPayload = msg.actionPayload.copy(isExecuted = true))
+                } else {
+                    msg
+                }
+            }
+        }
+    }
+
     fun clearAiChat() {
         _aiMessages.value = listOf(
             AiChatMessage(
                 sender = "WAQTI",
-                textAr = "تم بدء محادثة جديدة مع مساعد وقتي الذكي (ChatGPT). كيف أساعدك الآن في تنظيم مهامك ووقتك؟",
-                textEn = "Started a new conversation with Waqti AI Assistant (ChatGPT). How can I help you organize your tasks and time?"
+                textAr = "تم بدء محادثة جديدة مع مساعد وقتي الذكي 2.0. يمكنك سؤالي في أي موضوع عام (برمجة، دراسة، كتابة، نصائح) أو تنظيم مهامك وجدولك بذكاء. كيف أساعدك الآن؟",
+                textEn = "Started a fresh session with Waqti AI Assistant 2.0. You can ask me anything (coding, studying, writing, advice) or smartly manage your tasks and schedule. How can I help?"
             )
         )
     }
@@ -754,8 +866,18 @@ class WaqtiViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     // Notification & Prayer Settings State
-    private val _prayerLocationAndCalcSettings = MutableStateFlow(com.example.data.notification.PrayerLocationAndCalcSettings())
+    val locationPreferences = com.example.data.prayer.WaqtiLocationPreferences.getInstance(application)
+    val locationManager = com.example.data.prayer.WaqtiLocationManager(application)
+    val qiblaManager = com.example.data.prayer.WaqtiQiblaManager(application)
+
+    private val _prayerLocationAndCalcSettings = MutableStateFlow(locationPreferences.getSettings())
     val prayerLocationAndCalcSettings: StateFlow<com.example.data.notification.PrayerLocationAndCalcSettings> = _prayerLocationAndCalcSettings.asStateFlow()
+
+    init {
+        val initialLoc = locationManager.getEffectiveLocationSettings()
+        _prayerLocationAndCalcSettings.value = initialLoc
+        qiblaManager.updateLocation(initialLoc.latitude, initialLoc.longitude, initialLoc.cityName)
+    }
 
     private val _advancedNotificationSettings = MutableStateFlow(com.example.data.notification.AdvancedNotificationSettings())
     val advancedNotificationSettings: StateFlow<com.example.data.notification.AdvancedNotificationSettings> = _advancedNotificationSettings.asStateFlow()
@@ -793,12 +915,41 @@ class WaqtiViewModel(application: Application) : AndroidViewModel(application) {
 
     fun updatePrayerSettings(settings: com.example.data.notification.PrayerLocationAndCalcSettings) {
         _prayerLocationAndCalcSettings.value = settings
+        locationPreferences.saveSettings(settings)
+        qiblaManager.updateLocation(settings.latitude, settings.longitude, settings.cityName)
         viewModelScope.launch {
             com.example.notification.SmartNotificationEngine.recalculateAndScheduleAll(
                 context = getApplication(),
                 advancedSettings = _advancedNotificationSettings.value,
                 prayerCalcSettings = settings
             )
+        }
+    }
+
+    fun selectCityPreset(preset: com.example.data.prayer.PrayerCalculator.CityPreset) {
+        val isArabic = _language.value == com.example.localization.AppLanguage.ARABIC
+        locationPreferences.updateLocation(
+            cityNameAr = preset.cityNameAr,
+            cityNameEn = preset.cityNameEn,
+            governorateAr = preset.governorateAr,
+            governorateEn = preset.governorateEn,
+            countryAr = preset.countryAr,
+            countryEn = preset.countryEn,
+            latitude = preset.latitude,
+            longitude = preset.longitude,
+            source = "MANUAL",
+            isArabic = isArabic
+        )
+        val updated = locationPreferences.getSettings()
+        updatePrayerSettings(updated)
+    }
+
+    fun refreshLocationFromGps(onResult: ((Boolean) -> Unit)? = null) {
+        locationManager.refreshCurrentLocation { success, updatedSettings ->
+            _prayerLocationAndCalcSettings.value = updatedSettings
+            qiblaManager.updateLocation(updatedSettings.latitude, updatedSettings.longitude, updatedSettings.cityName)
+            recalculateNotifications()
+            onResult?.invoke(success)
         }
     }
 
@@ -840,5 +991,120 @@ class WaqtiViewModel(application: Application) : AndroidViewModel(application) {
         return PrayerCalculator.getPrayerTimes(
             settings = _prayerLocationAndCalcSettings.value
         )
+    }
+
+    // Audio 2.0 & Adhan Controls
+    fun updateAudioSettings(transform: (com.example.audio.WaqtiAudioPreferences.AudioSettingsState) -> com.example.audio.WaqtiAudioPreferences.AudioSettingsState) {
+        audioPreferences.updateSettings(transform)
+    }
+
+    fun playTestSound(type: com.example.audio.WaqtiAudioManager.AudioType) {
+        audioManager.playTestSound(type)
+    }
+
+    fun playTestAdhan(prayerName: String = "Fajr") {
+        android.util.Log.d("WAQTI_ADHAN_DEBUG", "Test button clicked for prayer: $prayerName")
+        com.example.audio.WaqtiAdhanService.start(getApplication(), prayerName, isTest = true)
+    }
+
+    fun stopAdhan() {
+        android.util.Log.d("WAQTI_ADHAN_DEBUG", "Stop Adhan requested from UI")
+        com.example.audio.WaqtiAdhanService.stop(getApplication())
+        audioManager.stopAll()
+    }
+
+    /**
+     * Handles custom Adhan file selection from system Storage Access Framework picker.
+     * Extracts display name, extracts duration, persists URI permission, and updates preferences.
+     * Returns true if valid audio file was successfully processed and saved.
+     */
+    fun onCustomAdhanFileSelected(uri: Uri, context: Context): Boolean {
+        return try {
+            // Take persistable URI permission if supported
+            try {
+                context.contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            } catch (e: SecurityException) {
+                Log.w("WAQTI_CUSTOM_ADHAN", "takePersistableUriPermission skipped/failed: ${e.message}")
+            }
+
+            // Extract display name
+            var fileName = "Custom Adhan"
+            try {
+                context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                    val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                    if (nameIndex != -1 && cursor.moveToFirst()) {
+                        val retrieved = cursor.getString(nameIndex)
+                        if (!retrieved.isNullOrBlank()) {
+                            fileName = retrieved
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                fileName = uri.lastPathSegment ?: "Custom Adhan"
+            }
+
+            // Validate MIME type and audio extensions
+            val mimeType = context.contentResolver.getType(uri) ?: ""
+            val isAudio = mimeType.startsWith("audio/") ||
+                    fileName.endsWith(".mp3", ignoreCase = true) ||
+                    fileName.endsWith(".m4a", ignoreCase = true) ||
+                    fileName.endsWith(".wav", ignoreCase = true) ||
+                    fileName.endsWith(".aac", ignoreCase = true) ||
+                    fileName.endsWith(".ogg", ignoreCase = true)
+
+            if (!isAudio) {
+                Log.w("WAQTI_CUSTOM_ADHAN", "Unsupported audio file selected: $fileName, mime: $mimeType")
+                return false
+            }
+
+            // Extract duration
+            var durationMs: Long? = null
+            try {
+                val retriever = MediaMetadataRetriever()
+                retriever.setDataSource(context, uri)
+                val durStr = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
+                durationMs = durStr?.toLongOrNull()
+                retriever.release()
+            } catch (e: Exception) {
+                Log.w("WAQTI_CUSTOM_ADHAN", "Could not extract duration: ${e.message}")
+            }
+
+            Log.d("WAQTI_CUSTOM_ADHAN", "Custom Adhan selected: uri=$uri")
+            Log.d("WAQTI_CUSTOM_ADHAN", "Custom Adhan name: $fileName")
+            Log.d("WAQTI_CUSTOM_ADHAN", "Custom Adhan duration: ${durationMs ?: 0}ms")
+
+            audioPreferences.setCustomAdhan(
+                uri = uri.toString(),
+                fileName = fileName,
+                duration = durationMs
+            )
+            true
+        } catch (e: Exception) {
+            Log.e("WAQTI_CUSTOM_ADHAN", "Failed selecting custom Adhan: ${e.message}", e)
+            false
+        }
+    }
+
+    /**
+     * Clears user-selected custom Adhan and restores built-in default Adhan.
+     */
+    fun removeCustomAdhan(context: Context) {
+        stopAdhan()
+        val currentUri = audioSettings.value.customAdhanUri
+        if (!currentUri.isNullOrBlank()) {
+            try {
+                context.contentResolver.releasePersistableUriPermission(
+                    Uri.parse(currentUri),
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            } catch (e: Exception) {
+                Log.w("WAQTI_CUSTOM_ADHAN", "releasePersistableUriPermission failed: ${e.message}")
+            }
+        }
+        audioPreferences.removeCustomAdhan()
+        Log.d("WAQTI_CUSTOM_ADHAN", "Custom Adhan removed. Restored built-in default Adhan.")
     }
 }

@@ -14,9 +14,17 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performClick
+import org.junit.Rule
+
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36])
 class ExampleRobolectricTest {
+
+    @get:Rule
+    val composeTestRule = createAndroidComposeRule<MainActivity>()
 
     @Test
     fun `verify app name resource is WAQTI`() {
@@ -28,7 +36,9 @@ class ExampleRobolectricTest {
     @Test
     fun `verify prayer times calculator returns all 5 daily prayers`() {
         val prayers = PrayerCalculator.getPrayerTimes()
-        assertEquals(5, prayers.size)
+        val prescribedPrayers = prayers.filter { it.isPrescribedPrayer }
+        assertEquals(5, prescribedPrayers.size)
+        assertTrue(prayers.size >= 5)
         val prayerNames = prayers.map { it.nameEn }
         assertTrue(prayerNames.contains("Fajr"))
         assertTrue(prayerNames.contains("Dhuhr"))
@@ -56,5 +66,40 @@ class ExampleRobolectricTest {
         val result = WaqtiAiEngine.handleImBehind(sampleTasks, AppLanguage.ARABIC)
         assertTrue(result.explanationAr.contains("ولا يهمك"))
         assertTrue(result.changes.isNotEmpty())
+    }
+
+    @Test
+    fun `verify MainActivity creates and launches successfully`() {
+        val controller = org.robolectric.Robolectric.buildActivity(MainActivity::class.java).setup()
+        val activity = controller.get()
+        assertNotNull(activity)
+        controller.pause().stop().destroy()
+    }
+
+    @Test
+    fun `verify full app UI and screens render without crash`() {
+        composeTestRule.waitForIdle()
+        // Check home screen is rendered
+        composeTestRule.onNodeWithTag("home_screen").assertExists()
+
+        // Navigate through all bottom nav tabs
+        composeTestRule.onNodeWithTag("nav_today").performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("nav_program").performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("nav_focus").performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("nav_tasks").performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("nav_more").performClick()
+        composeTestRule.waitForIdle()
+
+        // Return to home
+        composeTestRule.onNodeWithTag("nav_home").performClick()
+        composeTestRule.waitForIdle()
     }
 }
